@@ -16,3 +16,4 @@ Open http://localhost:8000. Controls: W/Up thrust, A/D or Left/Right turn.
 - `src/core/loop.js` – fixed-timestep loop with render interpolation
 - `src/core/input.js` – keyboard/pointer state
 - `src/core/math.js` – mat4 helpers
+- `src/graphics/` – starfield (parallax point layers), particles (pooled exhaust), ship mesh
