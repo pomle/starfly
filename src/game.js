@@ -573,7 +573,7 @@ export class Game {
   /** HP top-left, score top-right. */
   renderHud() {
     const W = this.width, H = this.height;
-    this.hpLabel.set(`HP ${Math.max(0, this.ship.hp)}`);
+    this.hpLabel.set(`SHIELD ${Math.max(0, this.ship.hp)}`);
     this.scoreLabel.set(`SCORE ${String(this.score).padStart(6, '0')}`);
 
     const scale = Math.max(2, Math.round(H / 1080 * 4));
