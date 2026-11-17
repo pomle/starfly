@@ -6,6 +6,7 @@ import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graph
 import { Enemies } from './enemies.js';
 import { Crosshair } from './ui/crosshair.js';
 import { Music } from './core/music.js';
+import { Sfx } from './core/sfx.js';
 import { Sprite, SpriteRenderer } from './ui/sprite.js';
 import { makeTextCanvas } from './ui/bitmapfont.js';
 
@@ -93,6 +94,7 @@ export class Game {
     // Splash music. Browsers block audio until a user gesture, so it starts from the
     // gate screen's click rather than on load.
     this.music = new Music(new URL('../music/bearound.ogg', import.meta.url).href);
+    this.sfx = new Sfx();
     this.levelMusic = new Music(new URL('../music/coloris.ogg', import.meta.url).href);
 
     gl.clearColor(0.01, 0.01, 0.04, 1);
@@ -141,6 +143,7 @@ export class Game {
       if (i.anyPressed()) {
         this.state = 'splash';
         this.music.play(); // runs right after the user's gesture, so audio is allowed
+        this.sfx.unlock();
       }
       return;
     }
@@ -286,6 +289,7 @@ export class Game {
 
   /** Small explosion: a quick flash plus a ring of embers. */
   explode(x, y, scale = 1) {
+    this.sfx.explosion({ size: scale, pan: x / (this.viewW / 2) });
     for (let n = 0; n < 3; n++) this.particles.emit(x, y, 0, 0, rand(0.12, 0.2), rand(1.8, 2.6) * scale);
     for (let n = 0; n < 28 * scale; n++) {
       const a = rand(0, TAU), sp = rand(1.5, 8) * Math.sqrt(scale);
@@ -300,6 +304,7 @@ export class Game {
     const reach = TURRET_BARREL * SHIP_SCALE;
     const mx = tx + dx * reach, my = ty + dy * reach;
     const wvy = s.vy + SCROLL_SPEED; // world-space ship velocity
+    this.sfx.laser({ pan: mx / (this.viewW / 2) });
     this.bullets.spawn(mx, my, s.vx + dx * BULLET_SPEED, wvy + dy * BULLET_SPEED);
     for (let n = 0; n < 3; n++) { // muzzle flash
       const sp = rand(3, 9), side = rand(-2, 2);
