@@ -1,7 +1,7 @@
 {
   "name": "Level 1",
   "loop": false,
-  "music": "music/coloris.ogg",
+  "music": "music/vector.ogg",
   "loopDelay": 3,
   "events": [
     { "time": 1.5,  "enemy": "jimmy", "x": 0,    "count": 5, "interval": 0.4 },
