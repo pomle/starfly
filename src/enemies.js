@@ -1,18 +1,6 @@
 import { createProgram } from './core/gl.js';
-import { ColorMesh, COLOR_VERT, COLOR_FRAG, tri } from './graphics/colormesh.js';
+import { ColorMesh, COLOR_VERT, COLOR_FRAG } from './graphics/colormesh.js';
 import { WorldSprite } from './graphics/worldsprite.js';
-
-// Interceptor: slim amber spear with swept fins, nose-down, cyan sensor eye.
-const iHull = [0.75, 0.5, 0.1], iHullLit = [1.0, 0.75, 0.2];
-const iFin = [0.5, 0.3, 0.08], iFinLit = [0.85, 0.55, 0.12], iEye = [0.3, 1.0, 1.0];
-const INTERCEPTOR_MESH = new Float32Array([
-  ...tri([0, -1.25], [-0.28, 0.5], [0, 0.35], iHull),
-  ...tri([0, -1.25], [0, 0.35], [0.28, 0.5], iHullLit),
-  ...tri([-0.28, -0.1], [-0.9, 0.95], [-0.28, 0.65], iFin),     // left fin
-  ...tri([0.28, -0.1], [0.28, 0.65], [0.9, 0.95], iFinLit),     // right fin
-  ...tri([-0.1, 0.35], [0.1, 0.35], [0, 0.95], iFin),           // tail spike
-  ...tri([0, -0.6], [-0.1, -0.15], [0.1, -0.15], iEye),
-]);
 
 /**
  * Enemy types referenced by name from level files. Every numeric field except
@@ -51,7 +39,8 @@ export const ENEMY_TYPES = {
   // Rare kamikaze: always points at the player and flies at them, turning at a limited
   // rate so a quick dodge makes it swing wide. Tougher than a jimmy.
   interceptor: {
-    mesh: INTERCEPTOR_MESH, scale: 1.0, radius: 0.85, maxRoll: 1.0,
+    sprite: new URL('../assets/interceptor.png', import.meta.url).href, spriteSize: 2.8,
+    spriteRotation: Math.PI, radius: 0.9, maxRoll: 1.0,
     hp: 5, descent: 0, amplitude: 0, frequency: 1, phase: 0, score: 500,
     speed: 6, turnRate: 2.2, accel: 2.5,
     debris: [1.0, 0.7, 0.2],
