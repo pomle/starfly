@@ -4,6 +4,8 @@ import { Particles } from './graphics/particles.js';
 import { Bullets } from './graphics/bullets.js';
 import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
 import { Crosshair } from './ui/crosshair.js';
+import { Sprite, SpriteRenderer } from './ui/sprite.js';
+import { makeTextCanvas } from './ui/bitmapfont.js';
 
 const STEP = 1 / 60; // must match the loop's fixed step
 const SHIP_SCALE = 0.8;
@@ -22,6 +24,10 @@ const SCROLL_SPEED = 3;   // world units / s
 const SHIP_SPEED = 10;    // max speed relative to the screen
 const SHIP_RESPONSE = 10; // how quickly velocity chases the input (1/s)
 const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
+
+const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
+const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
+const PROMPT_ON = 0.6;       // fraction of the cycle the text is visible
 
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
@@ -55,6 +61,14 @@ export class Game {
     this.bullets = new Bullets(gl);
     this.shipGfx = new Ship(gl);
     this.crosshair = new Crosshair(gl);
+
+    // Splash screen
+    this.state = 'splash'; // 'splash' | 'playing'
+    this.canvas.style.cursor = 'default';
+    this.logoFade = 1;     // 1 while the splash is up; fades to 0 after starting
+    this.sprites = new SpriteRenderer(gl);
+    this.logo = Sprite.fromUrl(gl, new URL('../assets/logo.png', import.meta.url).href);
+    this.prompt = Sprite.fromCanvas(gl, makeTextCanvas('PRESS ANY KEY'), { pixelArt: true });
 
     gl.clearColor(0.01, 0.01, 0.04, 1);
   }
@@ -93,8 +107,14 @@ export class Game {
     t.prevAngle = t.angle;
     this.cam.prevY = this.cam.y;
 
-    // --- Camera auto-scrolls ---
+    // --- Camera auto-scrolls (also behind the splash screen) ---
     this.cam.y += SCROLL_SPEED * dt;
+
+    if (this.state === 'splash') {
+      if (i.anyPressed()) this.startGame();
+      return;
+    }
+    this.logoFade = Math.max(0, this.logoFade - dt / LOGO_FADE);
 
     // --- Ship: screen-relative movement ---
     const k = (a, b) => (i.isDown(a) || i.isDown(b) ? 1 : 0);
@@ -134,6 +154,16 @@ export class Game {
 
     this.bullets.update(dt);
     this.particles.update(dt);
+  }
+
+  startGame() {
+    this.state = 'playing';
+    this.canvas.style.cursor = 'none';
+    const s = this.ship;
+    s.x = s.prevX = 0;
+    s.y = s.prevY = this.cam.y - 5;
+    s.vx = s.vy = 0;
+    this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
   fire(tx, ty) {
@@ -181,14 +211,22 @@ export class Game {
     mat4.ortho(this.viewProj, -hw, hw, camY - hh, camY + hh, -1, 1);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
+    const playing = this.state === 'playing';
 
     // Additive layers: stars, exhaust, bullets.
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
     this.starfield.render(0, camY, this.viewW, this.worldHeight, this.pxScale, this.time);
-    this.particles.render(this.viewProj, this.pxPerUnit);
-    this.bullets.render(this.viewProj, this.pxScale, alpha * STEP);
+    if (playing) {
+      this.particles.render(this.viewProj, this.pxPerUnit);
+      this.bullets.render(this.viewProj, this.pxScale, alpha * STEP);
+    }
     gl.disable(gl.BLEND);
+
+    if (!playing) {
+      this.renderSplash();
+      return;
+    }
 
     this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE);
     this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
@@ -199,5 +237,28 @@ export class Game {
     const [dx, dy] = dirOf(ta);
     const ax = (tx + dx * dist) / hw, ay = (ty + dy * dist - camY) / hh;
     this.crosshair.render(this.width, this.height, this.dpr, this.aim.nx, this.aim.ny, ax, ay);
+
+    if (this.logoFade > 0) this.renderSplash();
+  }
+
+  /** Logo plus blinking prompt. While fading out, only the logo is drawn. */
+  renderSplash() {
+    const W = this.width, H = this.height;
+    const waiting = this.state === 'splash';
+    const fade = waiting ? 1 : this.logoFade;
+
+    // Logo: up to 80% of the width / 45% of the height, gently bobbing.
+    const aspect = this.logo.width / this.logo.height;
+    const lw = Math.min(W * 0.8, H * 0.45 * aspect);
+    const lh = lw / aspect;
+    const bob = Math.sin(this.time * 1.5) * H * 0.01;
+    this.sprites.draw(this.logo, W / 2, H * 0.6 + bob, lw, lh, fade, W, H);
+
+    // Prompt: integer pixel scale keeps the bitmap font crisp.
+    if (waiting && (this.time % PROMPT_PERIOD) / PROMPT_PERIOD < PROMPT_ON) {
+      const scale = Math.max(2, Math.round(H / 1080 * 6));
+      this.sprites.draw(this.prompt, W / 2, H * 0.2,
+        this.prompt.width * scale, this.prompt.height * scale, 1, W, H);
+    }
   }
 }

@@ -13,10 +13,12 @@ export class Input {
     target.addEventListener('keyup', (e) => this.down.delete(e.code));
     window.addEventListener('blur', () => this.down.clear());
     target.addEventListener('pointermove', (e) => { this.mouse.x = e.clientX; this.mouse.y = e.clientY; });
-    target.addEventListener('pointerdown', (e) => { this.mouse.buttons = e.buttons; });
+    target.addEventListener('pointerdown', (e) => { this.mouse.buttons = e.buttons; this.pressed.add(`Mouse${e.button}`); });
     target.addEventListener('pointerup', (e) => { this.mouse.buttons = e.buttons; });
   }
   isDown(code) { return this.down.has(code); }
   wasPressed(code) { return this.pressed.has(code); }
+  /** True if any key or mouse button went down since the last endFrame(). */
+  anyPressed() { return this.pressed.size > 0; }
   endFrame() { this.pressed.clear(); }
 }
