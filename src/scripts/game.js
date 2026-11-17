@@ -35,7 +35,7 @@ const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
 const CLEAR_MUSIC_FADE = 1.5;    // seconds to fade the music out when the level is cleared
 // Levels are played in this order; clearing one starts the next.
-const LEVEL_FILES = ['level1.json', 'level2.json', 'level3.json'];
+const LEVEL_FILES = ['level2.json', 'level2.json', 'level3.json'];
 const LEVEL_CLEAR_TIME = 3.5;  // seconds "LEVEL CLEAR" shows before the next level begins
 
 const INTRO_TIME = 4;         // seconds the level name blinks before the level starts
@@ -336,7 +336,7 @@ export class Game {
       const reach = PLAYER_RADIUS + e.radius * CONTACT_FACTOR;
       if (Math.hypot(e.x - s.x, e.y - s.y) >= reach) continue;
       e.dead = true;
-      this.explode(e.x, e.y);
+      this.explode(e.x, e.y, ENEMY_TYPES[e.type].explosion ?? 1);
       s.hp--;
       if (s.hp <= 0) {
         s.alive = false;
@@ -375,7 +375,7 @@ export class Game {
         if (e.hp <= 0) {
           e.dead = true;
           this.score += e.score; // only shot-down enemies score, not ramming
-          this.explode(e.x, e.y);
+          this.explode(e.x, e.y, ENEMY_TYPES[e.type].explosion ?? 1);
           break;
         }
         this.enemies.hit(e, bvx, bvy);
@@ -525,7 +525,7 @@ export class Game {
       return;
     }
 
-    this.enemies.render(this.viewProj, alpha);
+    this.enemies.render(this.viewProj, alpha, this.pxPerUnit);
     this.debris.render(this.viewProj, this.pxPerUnit);
     // Blink while invulnerable; hidden while wrecked.
     const blinkOff = s.invuln > 0 && s.flyIn === 0 && Math.floor(this.time * 12) % 2 === 0;

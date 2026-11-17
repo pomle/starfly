@@ -1,6 +1,7 @@
 import { createProgram } from './core/gl.js';
 import { ColorMesh, COLOR_VERT, COLOR_FRAG } from './graphics/colormesh.js';
 import { WorldSprite } from './graphics/worldsprite.js';
+import { Particles } from './graphics/particles.js';
 
 /**
  * Enemy types referenced by name from level files. Every numeric field except
@@ -17,6 +18,10 @@ import { WorldSprite } from './graphics/worldsprite.js';
  *   speed      flight speed of a homing enemy, units/s (relative to the camera)
  *   turnRate   max turning speed of a homing enemy, rad/s. 0 = not homing: it follows
  *              the sine path / descends at `descent` instead
+ *   exhaust    optional engine fire: { nozzles: [[x, y], ...] offsets from the enemy's center for
+ *              a nose-down enemy (positive y = behind it), speed/life/size: [min, max] }.
+ *              The particles are drawn on top of the enemy (and of any flames in its sprite)
+ *   explosion  size multiplier for its death explosion (default 1; also louder/longer)
  *   accel      how quickly a homing enemy's velocity catches up with where it points, 1/s.
  *              Lower = more inertia (it slides through turns)
  */
@@ -33,6 +38,12 @@ export const ENEMY_TYPES = {
     sprite: new URL('../assets/brute.png', import.meta.url).href, spriteSize: 7.2,
     spriteRotation: Math.PI, radius: 2.4, maxRoll: 1.0,
     hp: 30, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 2000,
+    explosion: 4,
+    // The sprite's four rocket nozzles (measured from brute.png, 7.2 units wide for 1024 px).
+    exhaust: {
+      nozzles: [[1.08, 2.6], [0.6, 2.6], [-0.63, 2.6], [-1.1, 2.6]],
+      speed: [5, 9], life: [0.25, 0.5], size: [0.7, 1.2],
+    },
     speed: 0, turnRate: 0, accel: 0,
     debris: [0.7, 0.4, 0.22], // rusty hull chips
   },
@@ -80,6 +91,8 @@ export class Enemies {
       }
     }
     this.list = [];
+    this.gl = gl;
+    this.exhaust = new Particles(gl, 3000); // engine fire, drawn over the enemies
   }
 
   /**
@@ -151,9 +164,28 @@ export class Enemies {
         const topSpeed = Math.max(1e-6, e.amp * e.freq);
         e.roll = ((e.x - e.prevX) / dt) / topSpeed * type.maxRoll;
       }
+      if (type.exhaust) this.emitExhaust(e, type.exhaust, dt);
       if (e.y < cullY) e.dead = true;
     }
+    this.exhaust.update(dt);
     this.sweep();
+  }
+
+  /** Emits engine fire from each nozzle, trailing away from the enemy's nose. */
+  emitExhaust(e, cfg, dt) {
+    const a = e.angle, s = Math.sin(a), c = Math.cos(a);
+    const bx = -s, by = c; // backward direction (the nose points along (sin a, -cos a))
+    const vx = (e.x - e.prevX) / dt, vy = (e.y - e.prevY) / dt; // the enemy's own velocity
+    const rnd = (r) => r[0] + Math.random() * (r[1] - r[0]);
+    for (const [nx, ny] of cfg.nozzles) {
+      const speed = rnd(cfg.speed);
+      this.exhaust.emit(
+        e.x + e.kx + c * nx - s * ny, e.y + e.ky + s * nx + c * ny, // nozzle, rotated with the enemy
+        vx + bx * speed + (Math.random() - 0.5) * 0.8,
+        vy + by * speed,
+        rnd(cfg.life), rnd(cfg.size),
+      );
+    }
   }
 
   /**
@@ -172,7 +204,7 @@ export class Enemies {
     this.list = this.list.filter((e) => !e.dead);
   }
 
-  render(viewProj, alpha) {
+  render(viewProj, alpha, pxPerUnit) {
     for (const e of this.list) {
       const x = e.prevX + (e.x - e.prevX) * alpha;
       const y = e.prevY + (e.y - e.prevY) * alpha;
@@ -186,5 +218,11 @@ export class Enemies {
       }
       this.drawers.get(e.type)(viewProj, x + ox, y + oy, angle, roll, flash);
     }
+    // Engine fire goes on top of the sprites, additively, so it covers any baked-in flames.
+    const gl = this.gl;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    this.exhaust.render(viewProj, pxPerUnit);
+    gl.disable(gl.BLEND);
   }
 }
