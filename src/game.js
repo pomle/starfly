@@ -34,6 +34,7 @@ const ROLL_RESPONSE = 12; // how quickly the roll chases the target (1/s)
 const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
+const CLEAR_MUSIC_FADE = 1.5;    // seconds to fade the music out when the level is cleared
 const INTRO_TIME = 4;         // seconds the level name blinks before the level starts
 const INTRO_BLINK = 1.0;       // blink cycle (half on, half off)
 const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
@@ -103,6 +104,8 @@ export class Game {
     this.score = 0;
     this.introLeft = INTRO_TIME; // level name shows (and the level clock waits) until 0
     this.nameLabel = new TextLabel(gl);
+    this.clearLabel = new TextLabel(gl);
+    this.levelClear = false;     // set once a non-looping level is finished and cleared
     this.hpLabel = new TextLabel(gl);
     this.scoreLabel = new TextLabel(gl);
     this.gatePrompt = Sprite.fromCanvas(gl, makeTextCanvas('CLICK TO START'), { pixelArt: true });
@@ -191,9 +194,17 @@ export class Game {
     if (!this.runner) {
       this.runner = new LevelRunner(this.level);
     }
+    if (this.levelClear) return;
     const r = this.runner;
     r.update(dt, (sp) => this.enemies.spawn(sp.enemy, sp, this.cam.y, this.viewW, this.worldHeight));
-    if (r.done && this.level.loop && this.enemies.list.length === 0) r.reset(this.level.loopDelay);
+    if (r.done && this.enemies.list.length === 0) {
+      if (this.level.loop) {
+        r.reset(this.level.loopDelay);
+      } else {
+        this.levelClear = true; // all spawned and cleared: end the level
+        this.levelMusic.fadeOut(CLEAR_MUSIC_FADE);
+      }
+    }
   }
 
   /** Ship movement, roll, turret and shooting. */
@@ -314,6 +325,7 @@ export class Game {
     this.resetShip();
     this.score = 0;
     this.introLeft = INTRO_TIME;
+    this.levelClear = false;
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
@@ -467,6 +479,7 @@ export class Game {
 
     this.renderHud();
     this.renderLevelName();
+    this.renderLevelClear();
     if (this.logoFade > 0) this.renderSplash();
   }
 
@@ -477,6 +490,16 @@ export class Game {
     if ((elapsed % INTRO_BLINK) >= INTRO_BLINK / 2) return;
     this.nameLabel.set(this.level.name.toUpperCase());
     const sp = this.nameLabel.sprite;
+    const scale = Math.max(3, Math.round(this.height / 1080 * 10));
+    this.sprites.draw(sp, this.width / 2, this.height * 0.55,
+      sp.width * scale, sp.height * scale, 1, this.width, this.height);
+  }
+
+  /** Steady "LEVEL CLEAR" label once a non-looping level has ended. */
+  renderLevelClear() {
+    if (!this.levelClear) return;
+    this.clearLabel.set('LEVEL CLEAR');
+    const sp = this.clearLabel.sprite;
     const scale = Math.max(3, Math.round(this.height / 1080 * 10));
     this.sprites.draw(sp, this.width / 2, this.height * 0.55,
       sp.width * scale, sp.height * scale, 1, this.width, this.height);

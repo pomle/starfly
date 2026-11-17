@@ -4,8 +4,10 @@ import { ENEMY_TYPES, ENEMY_PARAMS } from './enemies.js';
  * Level file format (JSON):
  * {
  *   "name": "Level 1",
- *   "loop": true,          // optional: restart once everything is spawned and cleared
- *   "loopDelay": 3,        // optional: seconds of quiet before a restart
+ *   "loop": false,         // optional (default false). false: the level ends with "LEVEL CLEAR"
+ *                          // once everything has spawned and been cleared, and the music stops.
+ *                          // true: restart instead, after loopDelay.
+ *   "loopDelay": 3,        // optional: seconds of quiet before a loop restart
  *   "events": [
  *     {
  *       "time": 1.5,       // seconds since level start
