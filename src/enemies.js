@@ -23,7 +23,7 @@ import { WorldSprite } from './graphics/worldsprite.js';
 export const ENEMY_TYPES = {
   jimmy: {
     sprite: new URL('../assets/jimmy.png', import.meta.url).href, spriteSize: 2.6,
-    spriteRotation: Math.PI, radius: 0.8, maxRoll: 1.0,
+    spriteRotation: Math.PI, radius: 0.8, maxRoll: 0.5,
     hp: 3, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
     speed: 0, turnRate: 0, accel: 0,
     debris: [0.9, 0.15, 0.35], // chip color when hit
