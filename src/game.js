@@ -3,7 +3,7 @@ import { Starfield } from './graphics/starfield.js';
 import { Particles } from './graphics/particles.js';
 import { Debris } from './graphics/debris.js';
 import { Bullets } from './graphics/bullets.js';
-import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
+import { Ship, SHIP_ENGINE_Y, TURRET_MOUNT_Y, TURRET_REACH } from './graphics/ship.js';
 import { Enemies, ENEMY_TYPES } from './enemies.js';
 import { loadLevel, LevelRunner } from './level.js';
 import { Crosshair } from './ui/crosshair.js';
@@ -14,7 +14,6 @@ import { TextLabel } from './ui/textlabel.js';
 import { makeTextCanvas } from './ui/bitmapfont.js';
 
 const STEP = 1 / 60; // must match the loop's fixed step
-const SHIP_SCALE = 0.8;
 const rand = (a, b) => a + Math.random() * (b - a);
 const TAU = Math.PI * 2;
 const wrapPi = (a) => a - TAU * Math.round(a / TAU);
@@ -137,7 +136,7 @@ export class Game {
 
   /** World position of the turret pivot for a given ship position (ship always points up). */
   turretPos(x, y) {
-    return [x, y + TURRET_MOUNT_Y * SHIP_SCALE];
+    return [x, y + TURRET_MOUNT_Y];
   }
 
   /** Converts the mouse into the desired aim (NDC + world offset from the camera center). */
@@ -417,7 +416,7 @@ export class Game {
     const s = this.ship, t = this.turret;
     const a = t.angle + rand(-BULLET_SPREAD, BULLET_SPREAD);
     const [dx, dy] = dirOf(a);
-    const reach = TURRET_BARREL * SHIP_SCALE;
+    const reach = TURRET_REACH;
     const mx = tx + dx * reach, my = ty + dy * reach;
     const wvy = s.vy + SCROLL_SPEED; // world-space ship velocity
     this.sfx.laser({ pan: mx / (this.viewW / 2) });
@@ -431,7 +430,7 @@ export class Game {
 
   emitExhaust(count) {
     const s = this.ship;
-    const ex = s.x, ey = s.y + SHIP_ENGINE_OFFSET * SHIP_SCALE;
+    const ex = s.x, ey = s.y + SHIP_ENGINE_Y;
     const wvy = s.vy + SCROLL_SPEED;
     for (let n = 0; n < count; n++) {
       const speed = rand(6, 11);
@@ -486,8 +485,8 @@ export class Game {
     // Blink while invulnerable; hidden while wrecked.
     const blinkOff = s.invuln > 0 && s.flyIn === 0 && Math.floor(this.time * 12) % 2 === 0;
     if (s.alive && !blinkOff) {
-      this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE, roll);
-      this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
+      this.shipGfx.renderHull(this.viewProj, x, y, roll);
+      this.shipGfx.renderTurret(this.viewProj, tx, ty, ta);
     }
 
     // UI: white reticle = where you want to aim, orange dot = where the turret points
