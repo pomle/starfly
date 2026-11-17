@@ -5,9 +5,9 @@ Dependency-free WebGL2 game baseline using native ES modules.
 ## Run
 ES modules need HTTP (not `file://`):
 
-    python3 -m http.server 8000
+    npx serve
 
-Open http://localhost:8000. A "click to start" screen unlocks audio, then the splash waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
+Open the URL it prints (http://localhost:3000 by default). A "click to start" screen unlocks audio, then the splash waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
 
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
