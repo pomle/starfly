@@ -7,7 +7,7 @@ ES modules need HTTP (not `file://`):
 
     python3 -m http.server 8000
 
-Open http://localhost:8000. A splash screen waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
+Open http://localhost:8000. A "click to start" screen unlocks audio, then the splash waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
 
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
@@ -19,3 +19,4 @@ Open http://localhost:8000. A splash screen waits for any key or click. Vertical
 - `src/graphics/` – starfield, pooled particles, bullets, ship + turret meshes
 - `src/ui/` – crosshair, textured sprites (logo), 5x7 bitmap font
 - `assets/logo.png` – splash logo
+- `music/bearound.ogg` – splash music (src/core/music.js)

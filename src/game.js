@@ -4,6 +4,7 @@ import { Particles } from './graphics/particles.js';
 import { Bullets } from './graphics/bullets.js';
 import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
 import { Crosshair } from './ui/crosshair.js';
+import { Music } from './core/music.js';
 import { Sprite, SpriteRenderer } from './ui/sprite.js';
 import { makeTextCanvas } from './ui/bitmapfont.js';
 
@@ -28,6 +29,8 @@ const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
 const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
 const PROMPT_ON = 0.6;       // fraction of the cycle the text is visible
+
+const MUSIC_FADE = 1.0;        // seconds to fade the splash music out
 
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
@@ -63,12 +66,18 @@ export class Game {
     this.crosshair = new Crosshair(gl);
 
     // Splash screen
-    this.state = 'splash'; // 'splash' | 'playing'
+    // 'gate' (click to unlock audio) -> 'splash' (logo + music) -> 'playing'
+    this.state = 'gate';
     this.canvas.style.cursor = 'default';
     this.logoFade = 1;     // 1 while the splash is up; fades to 0 after starting
     this.sprites = new SpriteRenderer(gl);
     this.logo = Sprite.fromUrl(gl, new URL('../assets/logo.png', import.meta.url).href);
     this.prompt = Sprite.fromCanvas(gl, makeTextCanvas('PRESS ANY KEY'), { pixelArt: true });
+    this.gatePrompt = Sprite.fromCanvas(gl, makeTextCanvas('CLICK TO START'), { pixelArt: true });
+
+    // Splash music. Browsers block audio until a user gesture, so it starts from the
+    // gate screen's click rather than on load.
+    this.music = new Music(new URL('../music/bearound.ogg', import.meta.url).href);
 
     gl.clearColor(0.01, 0.01, 0.04, 1);
   }
@@ -106,10 +115,18 @@ export class Game {
     s.prevX = s.x; s.prevY = s.y;
     t.prevAngle = t.angle;
     this.cam.prevY = this.cam.y;
+    this.music.update(dt);
 
     // --- Camera auto-scrolls (also behind the splash screen) ---
     this.cam.y += SCROLL_SPEED * dt;
 
+    if (this.state === 'gate') {
+      if (i.anyPressed()) {
+        this.state = 'splash';
+        this.music.play(); // runs right after the user's gesture, so audio is allowed
+      }
+      return;
+    }
     if (this.state === 'splash') {
       if (i.anyPressed()) this.startGame();
       return;
@@ -158,6 +175,7 @@ export class Game {
 
   startGame() {
     this.state = 'playing';
+    this.music.fadeOut(MUSIC_FADE);
     this.canvas.style.cursor = 'none';
     const s = this.ship;
     s.x = s.prevX = 0;
@@ -223,6 +241,10 @@ export class Game {
     }
     gl.disable(gl.BLEND);
 
+    if (this.state === 'gate') {
+      this.renderPrompt(this.gatePrompt, false);
+      return;
+    }
     if (!playing) {
       this.renderSplash();
       return;
@@ -254,11 +276,15 @@ export class Game {
     const bob = Math.sin(this.time * 1.5) * H * 0.01;
     this.sprites.draw(this.logo, W / 2, H * 0.6 + bob, lw, lh, fade, W, H);
 
-    // Prompt: integer pixel scale keeps the bitmap font crisp.
-    if (waiting && (this.time % PROMPT_PERIOD) / PROMPT_PERIOD < PROMPT_ON) {
-      const scale = Math.max(2, Math.round(H / 1080 * 6));
-      this.sprites.draw(this.prompt, W / 2, H * 0.2,
-        this.prompt.width * scale, this.prompt.height * scale, 1, W, H);
-    }
+    if (waiting) this.renderPrompt(this.prompt, true);
+  }
+
+  /** Centered bitmap text (blinking ones sit low, under the logo), at an integer pixel scale to keep the font crisp. */
+  renderPrompt(sprite, blink) {
+    if (blink && (this.time % PROMPT_PERIOD) / PROMPT_PERIOD >= PROMPT_ON) return;
+    const W = this.width, H = this.height;
+    const scale = Math.max(2, Math.round(H / 1080 * 6));
+    this.sprites.draw(sprite, W / 2, blink ? H * 0.2 : H * 0.5,
+      sprite.width * scale, sprite.height * scale, 1, W, H);
   }
 }
