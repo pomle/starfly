@@ -11,19 +11,19 @@
 
     { "time": 38.5, "enemy": "jimmy", "x": -0.45, "count": 6, "interval": 0.4, "params": { "amplitude": 3.4, "frequency": 2.2 } },
 
-    { "time": 44.0, "enemy": "brute", "x": 0, "count": 1, "interval": 1.2 },
+    { "time": 44.0, "enemy": "brute", "x": 0, "count": 1, "interval": 3.2 },
 
     { "time": 49.0, "enemy": "jimmy", "x": 0.45, "count": 6, "interval": 0.4, "params": { "amplitude": 3.6, "frequency": 2.2, "phase": 3.1416 } },
 
     { "time": 59.5, "enemy": "jimmy", "x": -0.6, "count": 7, "interval": 0.4, "params": { "amplitude": 3.7, "frequency": 2.3 } },
 
-    { "time": 64.0, "enemy": "brute", "x": -0.6, "count": 1, "interval": 1.2 },
+    { "time": 64.0, "enemy": "brute", "x": -0.6, "count": 1, "interval": 3.2 },
 
     { "time": 69.0, "enemy": "jimmy", "x": 0.6, "count": 8, "interval": 0.4, "params": { "amplitude": 3.9, "frequency": 2.4, "phase": 3.1416 } },
 
     { "time": 77.5, "enemy": "jimmy", "x": 0, "count": 8, "interval": 0.3, "params": { "amplitude": 4.0, "frequency": 2.4 } },
 
-    { "time": 82.0, "enemy": "brute", "x": 0.6, "count": 2, "interval": 1.2 },
+    { "time": 82.0, "enemy": "brute", "x": 0.6, "count": 2, "interval": 3.2 },
 
     { "time": 86.0, "enemy": "jimmy", "x": -0.5, "count": 4, "interval": 0.3, "params": { "amplitude": 4.2, "frequency": 2.5 } },
     { "time": 86.0, "enemy": "jimmy", "x": 0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.2, "frequency": 2.5, "phase": 3.1416 } },
@@ -31,7 +31,7 @@
     { "time": 93.5, "enemy": "jimmy", "x": -0.5, "count": 4, "interval": 0.3, "params": { "amplitude": 4.3, "frequency": 2.5 } },
     { "time": 93.5, "enemy": "jimmy", "x": 0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.3, "frequency": 2.5, "phase": 3.1416 } },
 
-    { "time": 97.0, "enemy": "brute", "x": 0, "count": 2, "interval": 1.2 },
+    { "time": 97.0, "enemy": "brute", "x": 0, "count": 2, "interval": 3.2 },
 
     { "time": 100.5, "enemy": "jimmy", "x": -0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.5, "frequency": 2.6 } },
     { "time": 100.5, "enemy": "jimmy", "x": 0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.5, "frequency": 2.6, "phase": 3.1416 } },
@@ -39,8 +39,8 @@
     { "time": 106.5, "enemy": "jimmy", "x": -0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.6, "frequency": 2.6, "descent": 4.2 } },
     { "time": 106.5, "enemy": "jimmy", "x": 0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.6, "frequency": 2.6, "descent": 4.2, "phase": 3.1416 } },
 
-    { "time": 109.0, "enemy": "brute", "x": -0.6, "count": 2, "interval": 1.2 },
-    { "time": 109.0, "enemy": "brute", "x": 0.6, "count": 1, "interval": 1.2 },
+    { "time": 109.0, "enemy": "brute", "x": -0.6, "count": 2, "interval": 3.2 },
+    { "time": 109.0, "enemy": "brute", "x": 0.6, "count": 1, "interval": 3.2 },
 
     { "time": 112.0, "enemy": "jimmy", "x": -0.5, "count": 5, "interval": 0.3, "params": { "amplitude": 4.8, "frequency": 2.7, "descent": 4.4 } },
     { "time": 112.0, "enemy": "jimmy", "x": 0.5, "count": 6, "interval": 0.3, "params": { "amplitude": 4.8, "frequency": 2.7, "descent": 4.4, "phase": 3.1416 } },
@@ -48,7 +48,7 @@
     { "time": 117.0, "enemy": "jimmy", "x": -0.5, "count": 6, "interval": 0.3, "params": { "amplitude": 4.9, "frequency": 2.8, "descent": 4.6 } },
     { "time": 117.0, "enemy": "jimmy", "x": 0.5, "count": 6, "interval": 0.3, "params": { "amplitude": 4.9, "frequency": 2.8, "descent": 4.6, "phase": 3.1416 } },
 
-    { "time": 119.0, "enemy": "brute", "x": 0, "count": 3, "interval": 1.2 },
+    { "time": 119.0, "enemy": "brute", "x": 0, "count": 3, "interval": 3.2 },
 
     { "time": 121.5, "enemy": "jimmy", "x": -0.5, "count": 6, "interval": 0.3, "params": { "amplitude": 5.1, "frequency": 2.8, "descent": 4.8 } },
     { "time": 121.5, "enemy": "jimmy", "x": 0.5, "count": 6, "interval": 0.3, "params": { "amplitude": 5.1, "frequency": 2.8, "descent": 4.8, "phase": 3.1416 } },
