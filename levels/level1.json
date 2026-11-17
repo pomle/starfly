@@ -13,8 +13,14 @@
 
     { "time": 23,   "enemy": "jimmy", "x": 0,    "count": 8, "interval": 0.3, "params": { "amplitude": 5, "frequency": 1.6 } },
 
+    { "time": 19,   "enemy": "brute", "x": -0.5, "count": 2, "interval": 1.5 },
+    { "time": 19.75, "enemy": "brute", "x": 0.5,  "count": 2, "interval": 1.5 },
+
     { "time": 31,   "enemy": "jimmy", "x": -0.5, "count": 6, "interval": 0.35, "params": { "frequency": 3 } },
     { "time": 32,   "enemy": "jimmy", "x": 0.5,  "count": 6, "interval": 0.35, "params": { "frequency": 3, "phase": 3.1416 } },
+
+    { "time": 36,   "enemy": "brute", "x": -0.6, "count": 2, "interval": 1.2 },
+    { "time": 36.6, "enemy": "brute", "x": 0.6,  "count": 2, "interval": 1.2 },
 
     { "time": 40,   "enemy": "jimmy", "x": 0,    "count": 10, "interval": 0.25, "params": { "amplitude": 6, "frequency": 2, "descent": 5 } }
   ]

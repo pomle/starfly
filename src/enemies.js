@@ -13,6 +13,21 @@ const DART_MESH = new Float32Array([
   ...tri([0, -0.3], [-0.12, 0.15], [0.12, 0.15], eye),
 ]);
 
+// Heavy armored gunship, also nose-down. Wide teal body with side pods and a red core.
+const bHull = [0.15, 0.45, 0.45], bHullLit = [0.25, 0.7, 0.65];
+const bPod = [0.1, 0.3, 0.32], bPodLit = [0.18, 0.5, 0.5];
+const bAccent = [0.95, 0.6, 0.2], bCore = [1.0, 0.25, 0.2];
+const BRUTE_MESH = new Float32Array([
+  ...tri([0, -1.0], [-0.55, 0.6], [0, 0.8], bHull),
+  ...tri([0, -1.0], [0, 0.8], [0.55, 0.6], bHullLit),
+  ...tri([-0.5, -0.4], [-1.0, -0.2], [-1.0, 0.8], bPod),    // left pod
+  ...tri([-0.5, -0.4], [-1.0, 0.8], [-0.5, 0.8], bPod),
+  ...tri([0.5, -0.4], [0.5, 0.8], [1.0, 0.8], bPodLit),     // right pod
+  ...tri([0.5, -0.4], [1.0, 0.8], [1.0, -0.2], bPodLit),
+  ...tri([-0.3, 0.8], [0.3, 0.8], [0, 1.15], bAccent),      // engine block
+  ...tri([0, -0.45], [-0.18, 0.1], [0.18, 0.1], bCore),     // core
+]);
+
 /**
  * Enemy types referenced by name from level files. Every numeric field except
  * `radius` and `scale` can be overridden per spawn event via its "params".
@@ -27,6 +42,11 @@ export const ENEMY_TYPES = {
   jimmy: {
     mesh: DART_MESH, scale: 0.9, radius: 0.8, maxRoll: 1.0,
     hp: 1, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
+  },
+  // Slow, tough and big: drops straight down (amplitude 0) and takes 3 hits.
+  brute: {
+    mesh: BRUTE_MESH, scale: 1.3, radius: 1.1, maxRoll: 1.0,
+    hp: 3, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
   },
 };
 
