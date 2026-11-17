@@ -10,7 +10,7 @@ ES modules need HTTP (not `file://`):
 Open the URL it prints (http://localhost:3000 by default). A "click to start" screen unlocks audio, then the splash waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
 
 ## Layout
-Everything except this README lives in `src/` (the web root served above).
+The game lives in `src/` (the web root served above). `resources/` at the repo root holds source art and is not served.
 
 - `src/scripts/main.js` – bootstrap (canvas, context, loop)
 - `src/scripts/game.js` – game state, update (fixed step) and render
@@ -26,5 +26,5 @@ Everything except this README lives in `src/` (the web root served above).
 - `src/scripts/ui/` – crosshair, textured sprites (logo), 5x7 bitmap font, text labels (HUD)
 - `src/assets/` – sprite images (logo, ship, enemies)
 - `src/index.html` – page that loads `scripts/main.js`
-- `src/resources/` – source art (not loaded by the game)
+- `resources/` – source art (not loaded by the game)
 - `src/music/*.ogg` – splash and level music (a level picks its track with its `"music"` field; see `src/scripts/core/music.js`)
