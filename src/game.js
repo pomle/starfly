@@ -3,6 +3,7 @@ import { Starfield } from './graphics/starfield.js';
 import { Particles } from './graphics/particles.js';
 import { Bullets } from './graphics/bullets.js';
 import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
+import { Enemies } from './enemies.js';
 import { Crosshair } from './ui/crosshair.js';
 import { Music } from './core/music.js';
 import { Sprite, SpriteRenderer } from './ui/sprite.js';
@@ -31,6 +32,8 @@ const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
 const PROMPT_ON = 0.6;       // fraction of the cycle the text is visible
 
 const MUSIC_FADE = 1.0;        // seconds to fade the splash music out / level music in
+
+const BULLET_DAMAGE = 1;    // hp removed from an enemy per bullet hit
 
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
@@ -62,6 +65,7 @@ export class Game {
     this.starfield = new Starfield(gl);
     this.particles = new Particles(gl);
     this.bullets = new Bullets(gl);
+    this.enemies = new Enemies(gl);
     this.shipGfx = new Ship(gl);
     this.crosshair = new Crosshair(gl);
 
@@ -172,6 +176,8 @@ export class Game {
     }
 
     this.bullets.update(dt);
+    this.enemies.update(dt, this.cam.y, this.viewW, this.worldHeight, SCROLL_SPEED);
+    this.resolveBulletHits(dt);
     this.particles.update(dt);
   }
 
@@ -185,6 +191,41 @@ export class Game {
     s.y = s.prevY = this.cam.y - 5;
     s.vx = s.vy = 0;
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
+  }
+
+  /** Bullets damage enemies; enemies at 0 hp explode. */
+  resolveBulletHits(dt) {
+    const bullets = this.bullets;
+    for (const e of this.enemies.list) {
+      for (let b = bullets.count - 1; b >= 0; b--) {
+        if (!bullets.hits(b, e.x, e.y, e.radius, dt)) continue;
+        bullets.kill(b);
+        e.hp -= BULLET_DAMAGE;
+        if (e.hp <= 0) {
+          e.dead = true;
+          this.explode(e.x, e.y);
+          break;
+        }
+        this.hitSpark(e.x, e.y);
+      }
+    }
+    this.enemies.sweep();
+  }
+
+  hitSpark(x, y) {
+    for (let n = 0; n < 4; n++) {
+      const a = rand(0, TAU), sp = rand(2, 6);
+      this.particles.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.08, 0.2), rand(0.2, 0.4));
+    }
+  }
+
+  /** Small explosion: a quick flash plus a ring of embers. */
+  explode(x, y) {
+    for (let n = 0; n < 3; n++) this.particles.emit(x, y, 0, 0, rand(0.12, 0.2), rand(1.8, 2.6));
+    for (let n = 0; n < 28; n++) {
+      const a = rand(0, TAU), sp = rand(1.5, 8);
+      this.particles.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.3, 0.7), rand(0.5, 1.1));
+    }
   }
 
   fire(tx, ty) {
@@ -253,6 +294,7 @@ export class Game {
       return;
     }
 
+    this.enemies.render(this.viewProj, alpha);
     this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE);
     this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
 

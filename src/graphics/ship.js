@@ -1,29 +1,11 @@
-import { createProgram, createBuffer } from '../core/gl.js';
-import { mat4 } from '../core/math.js';
-
-const VERT = `#version 300 es
-in vec2 aPos;
-in vec3 aColor;
-uniform mat4 uViewProj;
-uniform mat4 uModel;
-out vec3 vColor;
-void main() {
-  vColor = aColor;
-  gl_Position = uViewProj * uModel * vec4(aPos, 0.0, 1.0);
-}`;
-
-const FRAG = `#version 300 es
-precision mediump float;
-in vec3 vColor;
-out vec4 outColor;
-void main() { outColor = vec4(vColor, 1.0); }`;
+import { createProgram } from '../core/gl.js';
+import { ColorMesh, COLOR_VERT, COLOR_FRAG, tri } from './colormesh.js';
 
 // Flat-shaded triangles, nose pointing +Y. Each vertex: x, y, r, g, b.
 // Left side is shaded darker than right to fake a light from the right.
 const hull = [0.55, 0.62, 0.72], hullLit = [0.78, 0.84, 0.92];
 const wing = [0.25, 0.32, 0.5], wingLit = [0.38, 0.5, 0.75];
 const glass = [0.3, 0.9, 1.0], accent = [0.95, 0.3, 0.25];
-const tri = (a, b, c, col) => [a, b, c].flatMap((p) => [...p, ...col]);
 
 const MESH = new Float32Array([
   ...tri([0, 1.2], [-0.3, -0.6], [0, -0.4], hull),         // body left
@@ -54,38 +36,9 @@ const TURRET_MESH = (() => {
   return new Float32Array(v);
 })();
 
-class ColorMesh {
-  constructor(gl, prog, data) {
-    this.gl = gl;
-    this.prog = prog;
-    this.vertexCount = data.length / 5;
-    this.model = mat4.create();
-    this.vao = gl.createVertexArray();
-    gl.bindVertexArray(this.vao);
-    createBuffer(gl, data);
-    const { aPos, aColor } = prog.attribs;
-    gl.enableVertexAttribArray(aPos);
-    gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 20, 0);
-    gl.enableVertexAttribArray(aColor);
-    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, 20, 8);
-    gl.bindVertexArray(null);
-  }
-
-  render(viewProj, x, y, angle, scale) {
-    const gl = this.gl;
-    mat4.fromTRS2D(this.model, x, y, angle, scale);
-    gl.useProgram(this.prog.program);
-    gl.uniformMatrix4fv(this.prog.uniforms.uViewProj, false, viewProj);
-    gl.uniformMatrix4fv(this.prog.uniforms.uModel, false, this.model);
-    gl.bindVertexArray(this.vao);
-    gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
-    gl.bindVertexArray(null);
-  }
-}
-
 export class Ship {
   constructor(gl) {
-    const prog = createProgram(gl, VERT, FRAG);
+    const prog = createProgram(gl, COLOR_VERT, COLOR_FRAG);
     this.hull = new ColorMesh(gl, prog, MESH);
     this.turret = new ColorMesh(gl, prog, TURRET_MESH);
   }

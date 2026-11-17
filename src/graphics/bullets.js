@@ -61,6 +61,26 @@ export class Bullets {
     this.age[i] = 0; this.life[i] = life;
   }
 
+  /** Removes bullet i (swap-remove, so iterate backwards when killing in a loop). */
+  kill(i) {
+    const l = --this.count;
+    this.px[i] = this.px[l]; this.py[i] = this.py[l];
+    this.vx[i] = this.vx[l]; this.vy[i] = this.vy[l];
+    this.age[i] = this.age[l]; this.life[i] = this.life[l];
+  }
+
+  /** Swept test: did bullet i cross the circle (cx, cy, r) during the last `dt`? */
+  hits(i, cx, cy, r, dt) {
+    const bx = this.px[i], by = this.py[i];
+    const ax = bx - this.vx[i] * dt, ay = by - this.vy[i] * dt;
+    const dx = bx - ax, dy = by - ay;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 > 0 ? ((cx - ax) * dx + (cy - ay) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const ex = ax + dx * t - cx, ey = ay + dy * t - cy;
+    return ex * ex + ey * ey <= r * r;
+  }
+
   update(dt) {
     for (let i = 0; i < this.count; ) {
       this.age[i] += dt;

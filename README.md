@@ -12,6 +12,7 @@ Open the URL it prints (http://localhost:3000 by default). A "click to start" sc
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
 - `src/game.js` – game state, update (fixed step) and render
+- `src/enemies.js` – enemy waves (sine-path fighters), mesh and lifecycle
 - `src/core/gl.js` – context, shader/program/buffer helpers, canvas resize
 - `src/core/loop.js` – fixed-timestep loop with render interpolation
 - `src/core/input.js` – keyboard/pointer state
