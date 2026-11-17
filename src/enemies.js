@@ -49,29 +49,32 @@ const INTERCEPTOR_MESH = new Float32Array([
  *   frequency  sine speed, rad/s
  *   phase      starting offset on the sine path, radians
  *   score      points awarded when the player shoots it down
- *   maxLateral top sideways speed when homing, units/s. 0 = follow the sine path instead
- *   steer      how quickly a homing enemy changes its sideways speed, 1/s
+ *   speed      flight speed of a homing enemy, units/s (relative to the camera)
+ *   turnRate   max turning speed of a homing enemy, rad/s. 0 = not homing: it follows
+ *              the sine path / descends at `descent` instead
+ *   accel      how quickly a homing enemy's velocity catches up with where it points, 1/s.
+ *              Lower = more inertia (it slides through turns)
  */
 export const ENEMY_TYPES = {
   jimmy: {
     mesh: DART_MESH, scale: 0.9, radius: 0.8, maxRoll: 1.0,
     hp: 3, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
-    maxLateral: 0, steer: 0,
+    speed: 0, turnRate: 0, accel: 0,
     debris: [0.85, 0.3, 0.42], // chip color when hit
   },
   // Slow, tough and big: drops straight down (amplitude 0) and takes 10 hits.
   brute: {
     mesh: BRUTE_MESH, scale: 1.3, radius: 1.1, maxRoll: 1.0,
     hp: 10, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
-    maxLateral: 0, steer: 0,
+    speed: 0, turnRate: 0, accel: 0,
     debris: [0.22, 0.62, 0.6],
   },
-  // Rare and fast: dives straight down but drifts sideways toward the player's position
-  // (slowly enough to dodge) until it has passed them. Tougher than a jimmy.
+  // Rare kamikaze: always points at the player and flies at them, turning at a limited
+  // rate so a quick dodge makes it swing wide. Tougher than a jimmy.
   interceptor: {
     mesh: INTERCEPTOR_MESH, scale: 1.0, radius: 0.85, maxRoll: 1.0,
-    hp: 5, descent: 5, amplitude: 0, frequency: 1, phase: 0, score: 500,
-    maxLateral: 3.5, steer: 2.5,
+    hp: 5, descent: 0, amplitude: 0, frequency: 1, phase: 0, score: 500,
+    speed: 6, turnRate: 2.2, accel: 2.5,
     debris: [1.0, 0.7, 0.2],
   },
 };
@@ -87,7 +90,7 @@ const KICK_STIFFNESS = 300;     // spring pulling the offset back to 0
 const KICK_DAMPING = 18;        // ~0.5 damping ratio: one small overshoot
 const KICK_MAX = 0.5;           // clamp on the offset, world units
 
-export const ENEMY_PARAMS = ['hp', 'descent', 'amplitude', 'frequency', 'phase', 'score', 'maxLateral', 'steer'];
+export const ENEMY_PARAMS = ['hp', 'descent', 'amplitude', 'frequency', 'phase', 'score', 'speed', 'turnRate', 'accel'];
 
 export class Enemies {
   constructor(gl) {
@@ -114,7 +117,8 @@ export class Enemies {
     const y = camY + viewH / 2 + 1.5;
     this.list.push({
       type: name, cx, amp, freq: p.frequency, phase: p.phase, descent: p.descent,
-      maxLat: p.maxLateral, steer: p.steer, vx: 0,
+      speed: p.speed, turnRate: p.turnRate, accel: p.accel, angle: 0, prevAngle: 0,
+      vx: 0, vy: -p.speed, // starts at full speed, nose down
       age: 0, x, y, prevX: x, prevY: y, roll: 0, prevRoll: 0,
       hp: p.hp, score: p.score, radius: type.radius, dead: false, hitTimer: 0,
       kx: 0, ky: 0, kvx: 0, kvy: 0, prevKx: 0, prevKy: 0,
@@ -129,7 +133,7 @@ export class Enemies {
     const cullY = camY - viewH / 2 - 2;
     for (const e of this.list) {
       const type = ENEMY_TYPES[e.type];
-      e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll;
+      e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll; e.prevAngle = e.angle;
       e.age += dt;
       e.hitTimer = Math.max(0, e.hitTimer - dt);
       e.prevKx = e.kx; e.prevKy = e.ky;
@@ -139,17 +143,28 @@ export class Enemies {
       e.ky += e.kvy * dt;
       const m = Math.hypot(e.kx, e.ky);
       if (m > KICK_MAX) { e.kx *= KICK_MAX / m; e.ky *= KICK_MAX / m; }
-      e.y += (scroll - e.descent) * dt;
-      if (e.maxLat > 0) {
-        // Homing: steer sideways toward the player while still above them, else straighten out.
-        let want = 0;
-        if (target && e.y > target.y + 1) {
-          want = Math.max(-e.maxLat, Math.min(e.maxLat, (target.x - e.x) * 1.5));
+      if (e.turnRate > 0) {
+        // Homing: turn the nose toward the player (limited turn rate) and thrust where it points.
+        // Angle 0 = nose down (-Y); the nose direction is (sin a, -cos a).
+        if (target) {
+          const want = Math.atan2(target.x - e.x, -(target.y - e.y));
+          const diff = want - e.angle;
+          const err = diff - 2 * Math.PI * Math.round(diff / (2 * Math.PI)); // shortest way round
+          const step = e.turnRate * dt;
+          e.angle += Math.max(-step, Math.min(step, err));
         }
-        e.vx += (want - e.vx) * Math.min(1, e.steer * dt);
+        // Inertia: velocity only eases toward the heading's full-speed velocity, so the
+        // enemy slides a little through turns instead of changing direction instantly.
+        const k = Math.min(1, e.accel * dt);
+        e.vx += (Math.sin(e.angle) * e.speed - e.vx) * k;
+        e.vy += (-Math.cos(e.angle) * e.speed - e.vy) * k;
         e.x += e.vx * dt;
-        e.roll = (e.vx / e.maxLat) * type.maxRoll;
+        e.y += (e.vy + scroll) * dt;
+        // Bank a little into the turn (a roll on top of the yaw).
+        e.roll = ((e.angle - e.prevAngle) / dt / e.turnRate) * type.maxRoll * 0.7;
+        if (e.age > 25) e.dead = true; // safety net: never let a chaser live forever
       } else {
+        e.y += (scroll - e.descent) * dt;
         e.x = e.cx + e.amp * Math.sin(e.freq * e.age + e.phase);
         // Roll into the sideways motion: normalized by the path's top speed.
         const topSpeed = Math.max(1e-6, e.amp * e.freq);
@@ -181,13 +196,14 @@ export class Enemies {
       const x = e.prevX + (e.x - e.prevX) * alpha;
       const y = e.prevY + (e.y - e.prevY) * alpha;
       const roll = e.prevRoll + (e.roll - e.prevRoll) * alpha;
+      const angle = e.prevAngle + (e.angle - e.prevAngle) * alpha;
       const ox = e.prevKx + (e.kx - e.prevKx) * alpha;
       const oy = e.prevKy + (e.ky - e.prevKy) * alpha;
       let flash = 0;
       if (e.hitTimer > 0) {
         flash = Math.floor((HIT_TIME - e.hitTimer) / HIT_BLINK) % 2 === 0 ? 1 : 0;
       }
-      this.meshes.get(e.type).render(viewProj, x + ox, y + oy, 0, ENEMY_TYPES[e.type].scale, roll, flash);
+      this.meshes.get(e.type).render(viewProj, x + ox, y + oy, angle, ENEMY_TYPES[e.type].scale, roll, flash);
     }
   }
 }
