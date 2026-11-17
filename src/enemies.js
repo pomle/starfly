@@ -142,8 +142,7 @@ export class Enemies {
         e.vy += (-Math.cos(e.angle) * e.speed - e.vy) * k;
         e.x += e.vx * dt;
         e.y += (e.vy + scroll) * dt;
-        // Bank a little into the turn (a roll on top of the yaw).
-        e.roll = ((e.angle - e.prevAngle) / dt / e.turnRate) * type.maxRoll * 0.7;
+        // No roll: homing enemies only yaw to face the player.
         if (e.age > 25) e.dead = true; // safety net: never let a chaser live forever
       } else {
         e.y += (scroll - e.descent) * dt;
