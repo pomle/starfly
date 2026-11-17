@@ -8,11 +8,14 @@ uniform mat4 uViewProj;
 uniform vec2 uCenter;  // world position
 uniform float uSize;   // world units (side of the square quad)
 uniform float uRoll;   // radians; roll around the vertical axis, seen from above
+uniform float uAngle;  // radians, counter-clockwise rotation of the whole sprite
 out vec2 vUV;
 out float vShade;
 void main() {
   // Top-down roll: foreshorten sideways, brighten one wing and darken the other.
-  vec2 p = vec2(aPos.x * cos(uRoll), aPos.y) * uSize + uCenter;
+  vec2 local = vec2(aPos.x * cos(uRoll), aPos.y) * uSize;
+  float c = cos(uAngle), s = sin(uAngle);
+  vec2 p = vec2(c * local.x - s * local.y, s * local.x + c * local.y) + uCenter;
   gl_Position = uViewProj * vec4(p, 0.0, 1.0);
   vUV = aUV;
   vShade = 1.0 - sin(uRoll) * clamp(aPos.x * 2.0, -1.0, 1.0) * 0.35;
@@ -23,13 +26,14 @@ precision mediump float;
 in vec2 vUV;
 in float vShade;
 uniform sampler2D uTex;
+uniform float uFlash;  // 0..1, blends toward white (hit flash)
 out vec4 outColor;
 void main() {
   vec4 c = texture(uTex, vUV); // premultiplied alpha
-  outColor = vec4(c.rgb * vShade, c.a);
+  outColor = vec4(mix(c.rgb * vShade, vec3(c.a), uFlash), c.a); // white = premultiplied (a,a,a)
 }`;
 
-/** A textured quad drawn in world space (nose up), loaded from an image URL. */
+/** A textured quad drawn in world space (art facing up by default), loaded from an image URL. */
 export class WorldSprite {
   constructor(gl, url) {
     this.gl = gl;
@@ -49,7 +53,7 @@ export class WorldSprite {
     gl.bindVertexArray(null);
   }
 
-  render(viewProj, x, y, size, roll = 0) {
+  render(viewProj, x, y, size, roll = 0, angle = 0, flash = 0) {
     if (!this.sprite.ready) return;
     const gl = this.gl, u = this.prog.uniforms;
     gl.enable(gl.BLEND);
@@ -59,6 +63,8 @@ export class WorldSprite {
     gl.uniform2f(u.uCenter, x, y);
     gl.uniform1f(u.uSize, size);
     gl.uniform1f(u.uRoll, roll);
+    gl.uniform1f(u.uAngle, angle);
+    gl.uniform1f(u.uFlash, flash);
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, this.sprite.texture);
     gl.uniform1i(u.uTex, 0);

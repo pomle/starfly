@@ -1,17 +1,6 @@
 import { createProgram } from './core/gl.js';
 import { ColorMesh, COLOR_VERT, COLOR_FRAG, tri } from './graphics/colormesh.js';
-
-// Dart-shaped alien fighter, nose pointing -Y (it flies down the screen).
-const hull = [0.7, 0.2, 0.35], hullLit = [0.92, 0.32, 0.45];
-const wing = [0.35, 0.1, 0.28], wingLit = [0.58, 0.16, 0.42];
-const eye = [1.0, 0.85, 0.3];
-const DART_MESH = new Float32Array([
-  ...tri([0, -1.0], [-0.4, 0.5], [0, 0.3], hull),
-  ...tri([0, -1.0], [0, 0.3], [0.4, 0.5], hullLit),
-  ...tri([-0.35, 0.2], [-1.0, 0.9], [-0.35, 0.7], wing),
-  ...tri([0.35, 0.2], [0.35, 0.7], [1.0, 0.9], wingLit),
-  ...tri([0, -0.3], [-0.12, 0.15], [0.12, 0.15], eye),
-]);
+import { WorldSprite } from './graphics/worldsprite.js';
 
 // Heavy armored gunship, also nose-down. Wide teal body with side pods and a red core.
 const bHull = [0.15, 0.45, 0.45], bHullLit = [0.25, 0.7, 0.65];
@@ -42,7 +31,10 @@ const INTERCEPTOR_MESH = new Float32Array([
 
 /**
  * Enemy types referenced by name from level files. Every numeric field except
- * `radius` and `scale` can be overridden per spawn event via its "params".
+ * `radius`, `scale` and the sprite fields can be overridden per spawn event via "params".
+ * A type is drawn either from a vertex `mesh` (nose down, scaled by `scale`) or from a
+ * `sprite` image (`spriteSize` = world units for the whole square image, `spriteRotation`
+ * = how much to rotate the art so it faces down; art in the files faces up, so use PI).
  *   hp         hit points
  *   descent    speed down the screen, units/s (relative to the camera)
  *   amplitude  sideways swing of the sine path, world units
@@ -57,10 +49,11 @@ const INTERCEPTOR_MESH = new Float32Array([
  */
 export const ENEMY_TYPES = {
   jimmy: {
-    mesh: DART_MESH, scale: 0.9, radius: 0.8, maxRoll: 1.0,
+    sprite: new URL('../assets/jimmy.png', import.meta.url).href, spriteSize: 2.6,
+    spriteRotation: Math.PI, radius: 0.8, maxRoll: 1.0,
     hp: 3, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
     speed: 0, turnRate: 0, accel: 0,
-    debris: [0.85, 0.3, 0.42], // chip color when hit
+    debris: [0.9, 0.15, 0.35], // chip color when hit
   },
   // Slow, tough and big: drops straight down (amplitude 0) and takes 10 hits.
   brute: {
@@ -95,9 +88,21 @@ export const ENEMY_PARAMS = ['hp', 'descent', 'amplitude', 'frequency', 'phase',
 export class Enemies {
   constructor(gl) {
     const prog = createProgram(gl, COLOR_VERT, COLOR_FRAG);
-    this.meshes = new Map();
+    // One draw function per type: (viewProj, x, y, angle, roll, flash) => void
+    this.drawers = new Map();
     for (const [name, type] of Object.entries(ENEMY_TYPES)) {
-      this.meshes.set(name, new ColorMesh(gl, prog, type.mesh));
+      if (type.sprite) {
+        const sprite = new WorldSprite(gl, type.sprite);
+        // The art is rotated by spriteRotation; flip the roll's sign with it so the lit
+        // wing stays on the same side of the screen.
+        const rollSign = Math.cos(type.spriteRotation);
+        this.drawers.set(name, (vp, x, y, angle, roll, flash) => sprite.render(
+          vp, x, y, type.spriteSize, roll * rollSign, angle + type.spriteRotation, flash));
+      } else {
+        const mesh = new ColorMesh(gl, prog, type.mesh);
+        this.drawers.set(name, (vp, x, y, angle, roll, flash) => mesh.render(
+          vp, x, y, angle, type.scale, roll, flash));
+      }
     }
     this.list = [];
   }
@@ -203,7 +208,7 @@ export class Enemies {
       if (e.hitTimer > 0) {
         flash = Math.floor((HIT_TIME - e.hitTimer) / HIT_BLINK) % 2 === 0 ? 1 : 0;
       }
-      this.meshes.get(e.type).render(viewProj, x + ox, y + oy, angle, ENEMY_TYPES[e.type].scale, roll, flash);
+      this.drawers.get(e.type)(viewProj, x + ox, y + oy, angle, roll, flash);
     }
   }
 }
