@@ -32,7 +32,7 @@ export const ENEMY_TYPES = {
   brute: {
     sprite: new URL('../assets/brute.png', import.meta.url).href, spriteSize: 7.2,
     spriteRotation: Math.PI, radius: 2.4, maxRoll: 1.0,
-    hp: 30, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
+    hp: 30, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 2000,
     speed: 0, turnRate: 0, accel: 0,
     debris: [0.7, 0.4, 0.22], // rusty hull chips
   },
