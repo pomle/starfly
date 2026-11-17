@@ -16,6 +16,13 @@ const wrapPi = (a) => a - TAU * Math.round(a / TAU);
 const TURRET_K = 60;
 const TURRET_C = 6;
 
+// Vertical auto-scroller: the camera climbs +Y at a constant speed; the ship flies
+// relative to the screen and is clamped inside it.
+const SCROLL_SPEED = 3;   // world units / s
+const SHIP_SPEED = 10;    // max speed relative to the screen
+const SHIP_RESPONSE = 10; // how quickly velocity chases the input (1/s)
+const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
+
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
 const BULLET_SPREAD = 0.02; // radians
@@ -30,7 +37,9 @@ export class Game {
     this.canvas = gl.canvas;
     this.input = input;
     this.time = 0;
-    this.ship = { x: 0, y: 0, vx: 0, vy: 0, angle: 0, prevX: 0, prevY: 0, prevAngle: 0 };
+    // vx/vy are the ship's velocity relative to the screen (not including scroll).
+    this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5 };
+    this.cam = { y: 0, prevY: 0 }; // camera x is fixed at 0
     // angle/prevAngle are kept unwrapped so interpolation never jumps.
     this.turret = { angle: 0, prevAngle: 0, omega: 0, cooldown: 0 };
     this.aim = { nx: 0, ny: 1, ox: 0, oy: 1 }; // desired aim: NDC and world offset from ship
@@ -59,11 +68,9 @@ export class Game {
     this.pxScale = height / 1080;
   }
 
-  /** World position of the turret pivot for a given ship pose. */
-  turretPos(x, y, angle) {
-    const [fx, fy] = dirOf(angle);
-    const d = TURRET_MOUNT_Y * SHIP_SCALE;
-    return [x + fx * d, y + fy * d];
+  /** World position of the turret pivot for a given ship position (ship always points up). */
+  turretPos(x, y) {
+    return [x, y + TURRET_MOUNT_Y * SHIP_SCALE];
   }
 
   /** Converts the mouse into the desired aim (NDC + world offset from the camera center). */
@@ -82,30 +89,37 @@ export class Game {
   update(dt) {
     this.time += dt;
     const s = this.ship, t = this.turret, i = this.input;
-    s.prevX = s.x; s.prevY = s.y; s.prevAngle = s.angle;
+    s.prevX = s.x; s.prevY = s.y;
     t.prevAngle = t.angle;
+    this.cam.prevY = this.cam.y;
 
-    // --- Ship ---
-    const turn = (i.isDown('ArrowLeft') || i.isDown('KeyA') ? 1 : 0) -
-                 (i.isDown('ArrowRight') || i.isDown('KeyD') ? 1 : 0);
-    s.angle += turn * 3 * dt;
+    // --- Camera auto-scrolls ---
+    this.cam.y += SCROLL_SPEED * dt;
 
-    const [fx, fy] = dirOf(s.angle);
-    if (i.isDown('ArrowUp') || i.isDown('KeyW')) {
-      const thrust = 12;
-      s.vx += fx * thrust * dt;
-      s.vy += fy * thrust * dt;
-      this.emitExhaust(fx, fy);
-    }
-    s.vx *= 1 - 0.5 * dt;
-    s.vy *= 1 - 0.5 * dt;
+    // --- Ship: screen-relative movement ---
+    const k = (a, b) => (i.isDown(a) || i.isDown(b) ? 1 : 0);
+    let mx = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
+    let my = k('KeyW', 'ArrowUp') - k('KeyS', 'ArrowDown');
+    if (mx && my) { mx *= Math.SQRT1_2; my *= Math.SQRT1_2; }
+    const blend = Math.min(1, SHIP_RESPONSE * dt);
+    s.vx += (mx * SHIP_SPEED - s.vx) * blend;
+    s.vy += (my * SHIP_SPEED - s.vy) * blend;
     s.x += s.vx * dt;
-    s.y += s.vy * dt;
+    s.y += (s.vy + SCROLL_SPEED) * dt; // rides along with the camera
+
+    const hw = this.viewW / 2 - EDGE_MARGIN, hh = this.worldHeight / 2 - EDGE_MARGIN;
+    if (s.x < -hw) { s.x = -hw; s.vx = Math.max(0, s.vx); }
+    if (s.x > hw) { s.x = hw; s.vx = Math.min(0, s.vx); }
+    const minY = this.cam.y - hh, maxY = this.cam.y + hh;
+    if (s.y < minY) { s.y = minY; s.vy = Math.max(0, s.vy); }
+    if (s.y > maxY) { s.y = maxY; s.vy = Math.min(0, s.vy); }
+
+    this.emitExhaust(my > 0 ? 3 : 1);
 
     // --- Turret: spring chases the desired aim direction ---
     this.updateAim();
-    const [tx, ty] = this.turretPos(s.x, s.y, s.angle);
-    const desired = angleOf(s.x + this.aim.ox - tx, s.y + this.aim.oy - ty);
+    const [tx, ty] = this.turretPos(s.x, s.y);
+    const desired = angleOf(this.aim.ox - tx, this.cam.y + this.aim.oy - ty);
     const err = wrapPi(desired - t.angle);
     t.omega += (TURRET_K * err - TURRET_C * t.omega) * dt;
     t.angle += t.omega * dt;
@@ -128,25 +142,26 @@ export class Game {
     const [dx, dy] = dirOf(a);
     const reach = TURRET_BARREL * SHIP_SCALE;
     const mx = tx + dx * reach, my = ty + dy * reach;
-    this.bullets.spawn(mx, my, s.vx + dx * BULLET_SPEED, s.vy + dy * BULLET_SPEED);
+    const wvy = s.vy + SCROLL_SPEED; // world-space ship velocity
+    this.bullets.spawn(mx, my, s.vx + dx * BULLET_SPEED, wvy + dy * BULLET_SPEED);
     for (let n = 0; n < 3; n++) { // muzzle flash
       const sp = rand(3, 9), side = rand(-2, 2);
-      this.particles.emit(mx, my, s.vx + dx * sp - dy * side, s.vy + dy * sp + dx * side,
+      this.particles.emit(mx, my, s.vx + dx * sp - dy * side, wvy + dy * sp + dx * side,
         rand(0.06, 0.14), rand(0.25, 0.45));
     }
   }
 
-  emitExhaust(fx, fy) {
+  emitExhaust(count) {
     const s = this.ship;
-    const off = SHIP_ENGINE_OFFSET * SHIP_SCALE;
-    const ex = s.x + fx * off, ey = s.y + fy * off;
-    for (let n = 0; n < 3; n++) {
+    const ex = s.x, ey = s.y + SHIP_ENGINE_OFFSET * SHIP_SCALE;
+    const wvy = s.vy + SCROLL_SPEED;
+    for (let n = 0; n < count; n++) {
       const speed = rand(6, 11);
       const side = rand(-1.2, 1.2);
       this.particles.emit(
         ex + rand(-0.1, 0.1), ey + rand(-0.1, 0.1),
-        s.vx - fx * speed - fy * side,
-        s.vy - fy * speed + fx * side,
+        s.vx + side,
+        wvy - speed,
         rand(0.3, 0.7), rand(0.5, 0.9),
       );
     }
@@ -157,32 +172,32 @@ export class Game {
     const gl = this.gl, s = this.ship, t = this.turret;
     const x = s.prevX + (s.x - s.prevX) * alpha;
     const y = s.prevY + (s.y - s.prevY) * alpha;
-    const a = s.prevAngle + (s.angle - s.prevAngle) * alpha;
+    const camY = this.cam.prevY + (this.cam.y - this.cam.prevY) * alpha;
     const ta = t.prevAngle + (t.angle - t.prevAngle) * alpha;
-    const [tx, ty] = this.turretPos(x, y, a);
+    const [tx, ty] = this.turretPos(x, y);
 
-    // Camera follows the ship.
+    // Camera scrolls upward at a constant rate.
     const hw = this.viewW / 2, hh = this.worldHeight / 2;
-    mat4.ortho(this.viewProj, x - hw, x + hw, y - hh, y + hh, -1, 1);
+    mat4.ortho(this.viewProj, -hw, hw, camY - hh, camY + hh, -1, 1);
 
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     // Additive layers: stars, exhaust, bullets.
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE);
-    this.starfield.render(x, y, this.viewW, this.worldHeight, this.pxScale, this.time);
+    this.starfield.render(0, camY, this.viewW, this.worldHeight, this.pxScale, this.time);
     this.particles.render(this.viewProj, this.pxPerUnit);
     this.bullets.render(this.viewProj, this.pxScale, alpha * STEP);
     gl.disable(gl.BLEND);
 
-    this.shipGfx.renderHull(this.viewProj, x, y, a, SHIP_SCALE);
+    this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE);
     this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
 
     // UI: white reticle = where you want to aim, orange dot = where the turret points
     // (same distance as the reticle, so the gap shows the spring lag).
-    const dist = Math.hypot(this.aim.ox - (tx - x), this.aim.oy - (ty - y));
+    const dist = Math.hypot(this.aim.ox - tx, this.aim.oy - (ty - camY));
     const [dx, dy] = dirOf(ta);
-    const ax = (tx + dx * dist - x) / hw, ay = (ty + dy * dist - y) / hh;
+    const ax = (tx + dx * dist) / hw, ay = (ty + dy * dist - camY) / hh;
     this.crosshair.render(this.width, this.height, this.dpr, this.aim.nx, this.aim.ny, ax, ay);
   }
 }

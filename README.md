@@ -7,7 +7,7 @@ ES modules need HTTP (not `file://`):
 
     python3 -m http.server 8000
 
-Open http://localhost:8000. Controls: W/Up thrust, A/D or Left/Right turn, mouse aims the turret, left click or Space fires.
+Open http://localhost:8000. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
 
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
