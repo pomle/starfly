@@ -3,7 +3,7 @@ import { Starfield } from './graphics/starfield.js';
 import { Particles } from './graphics/particles.js';
 import { Debris } from './graphics/debris.js';
 import { Bullets } from './graphics/bullets.js';
-import { Ship, SHIP_ENGINE_Y, TURRET_MOUNT_Y, TURRET_REACH } from './graphics/ship.js';
+import { Ship, SHIP_ENGINE_Y, SHIP_NOZZLES_X, TURRET_MOUNT_Y, TURRET_REACH } from './graphics/ship.js';
 import { Enemies, ENEMY_TYPES } from './enemies.js';
 import { loadLevel, LevelRunner } from './level.js';
 import { Crosshair } from './ui/crosshair.js';
@@ -430,15 +430,22 @@ export class Game {
 
   emitExhaust(count) {
     const s = this.ship;
-    const ex = s.x, ey = s.y + SHIP_ENGINE_Y;
-    const wvy = s.vy + SCROLL_SPEED;
+    // The hull foreshortens by cos(roll) around the ship's center line, so the nozzles do too.
+    const squeeze = Math.cos(s.roll);
     for (let n = 0; n < count; n++) {
+      // Spread the emissions along this step's travel so the trail is continuous.
+      const f = (n + 1) / count;
+      const nozzle = SHIP_NOZZLES_X[count >= SHIP_NOZZLES_X.length ? n % SHIP_NOZZLES_X.length
+                                                                    : Math.floor(Math.random() * SHIP_NOZZLES_X.length)];
+      const ex = s.prevX + (s.x - s.prevX) * f + nozzle * squeeze + rand(-0.03, 0.03);
+      const ey = s.prevY + (s.y - s.prevY) * f + SHIP_ENGINE_Y + rand(-0.03, 0.03);
       const speed = rand(6, 11);
-      const side = rand(-1.2, 1.2);
+      // Exhaust doesn't inherit the ship's own sideways/forward motion: it is left behind
+      // in the world (which only scrolls), so it trails the ship instead of running ahead.
       this.particles.emit(
-        ex + rand(-0.1, 0.1), ey + rand(-0.1, 0.1),
-        s.vx + side,
-        wvy - speed,
+        ex, ey,
+        rand(-1.2, 1.2),
+        SCROLL_SPEED - speed,
         rand(0.3, 0.7), rand(0.5, 0.9),
       );
     }
