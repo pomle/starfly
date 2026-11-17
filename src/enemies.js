@@ -52,10 +52,16 @@ export const ENEMY_TYPES = {
   },
 };
 
-// Hit reaction for hits that don't kill: a short shake and a white blink.
+// Hit reaction for hits that don't kill: a knock along the shot direction and a white blink.
 export const HIT_TIME = 0.22;   // seconds
 const HIT_BLINK = 0.055;        // seconds per blink phase (white, normal, white, ...)
-const HIT_SHAKE = 0.14;         // world units at the start of the reaction
+// The knock is a damped spring on a render-only offset (it never moves the hitbox):
+// a hit adds velocity along the bullet's direction, the enemy slides a little way, overshoots
+// slightly and settles back, which gives it a bit of inertia.
+const KICK_SPEED = 4.5;         // units/s of knock velocity added per hit
+const KICK_STIFFNESS = 300;     // spring pulling the offset back to 0
+const KICK_DAMPING = 18;        // ~0.5 damping ratio: one small overshoot
+const KICK_MAX = 0.5;           // clamp on the offset, world units
 
 export const ENEMY_PARAMS = ['hp', 'descent', 'amplitude', 'frequency', 'phase', 'score'];
 
@@ -86,6 +92,7 @@ export class Enemies {
       type: name, cx, amp, freq: p.frequency, phase: p.phase, descent: p.descent,
       age: 0, x, y, prevX: x, prevY: y, roll: 0, prevRoll: 0,
       hp: p.hp, score: p.score, radius: type.radius, dead: false, hitTimer: 0,
+      kx: 0, ky: 0, kvx: 0, kvy: 0, prevKx: 0, prevKy: 0,
     });
   }
 
@@ -97,6 +104,13 @@ export class Enemies {
       e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll;
       e.age += dt;
       e.hitTimer = Math.max(0, e.hitTimer - dt);
+      e.prevKx = e.kx; e.prevKy = e.ky;
+      e.kvx += (-KICK_STIFFNESS * e.kx - KICK_DAMPING * e.kvx) * dt;
+      e.kvy += (-KICK_STIFFNESS * e.ky - KICK_DAMPING * e.kvy) * dt;
+      e.kx += e.kvx * dt;
+      e.ky += e.kvy * dt;
+      const m = Math.hypot(e.kx, e.ky);
+      if (m > KICK_MAX) { e.kx *= KICK_MAX / m; e.ky *= KICK_MAX / m; }
       e.x = e.cx + e.amp * Math.sin(e.freq * e.age + e.phase);
       e.y += (scroll - e.descent) * dt;
       // Roll into the sideways motion: normalized by the path's top speed.
@@ -107,9 +121,15 @@ export class Enemies {
     this.sweep();
   }
 
-  /** Starts the shake + blink reaction (for hits that don't destroy the enemy). */
-  hit(e) {
+  /**
+   * Starts the knock + blink reaction (for hits that don't destroy the enemy).
+   * (dx, dy) is the direction the bullet was travelling; it need not be normalized.
+   */
+  hit(e, dx, dy) {
     e.hitTimer = HIT_TIME;
+    const len = Math.hypot(dx, dy) || 1;
+    e.kvx += (dx / len) * KICK_SPEED;
+    e.kvy += (dy / len) * KICK_SPEED;
   }
 
   /** Drops enemies marked dead. */
@@ -122,12 +142,10 @@ export class Enemies {
       const x = e.prevX + (e.x - e.prevX) * alpha;
       const y = e.prevY + (e.y - e.prevY) * alpha;
       const roll = e.prevRoll + (e.roll - e.prevRoll) * alpha;
-      // Shake is render-only, so it never moves the hitbox.
-      let ox = 0, oy = 0, flash = 0;
+      const ox = e.prevKx + (e.kx - e.prevKx) * alpha;
+      const oy = e.prevKy + (e.ky - e.prevKy) * alpha;
+      let flash = 0;
       if (e.hitTimer > 0) {
-        const k = e.hitTimer / HIT_TIME;
-        ox = Math.sin(e.hitTimer * 120) * HIT_SHAKE * k;
-        oy = Math.cos(e.hitTimer * 97) * HIT_SHAKE * k;
         flash = Math.floor((HIT_TIME - e.hitTimer) / HIT_BLINK) % 2 === 0 ? 1 : 0;
       }
       this.meshes.get(e.type).render(viewProj, x + ox, y + oy, 0, ENEMY_TYPES[e.type].scale, roll, flash);

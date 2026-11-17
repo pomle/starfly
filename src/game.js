@@ -363,7 +363,7 @@ export class Game {
           this.explode(e.x, e.y);
           break;
         }
-        this.enemies.hit(e);
+        this.enemies.hit(e, bvx, bvy);
         this.sfx.hit({ pan: e.x / (this.viewW / 2) });
         this.hitDebris(e, bvx, bvy);
         this.hitSpark(e.x, e.y);
