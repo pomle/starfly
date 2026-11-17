@@ -1,6 +1,7 @@
 {
   "name": "Level 2",
   "loop": false,
+  "music": "music/coloris.ogg",
   "events": [
     { "time": 1.5,  "enemy": "jimmy", "x": -0.8, "count": 6, "interval": 0.3, "params": { "amplitude": 3, "frequency": 3 } },
     { "time": 1.5,  "enemy": "jimmy", "x": 0.8,  "count": 6, "interval": 0.3, "params": { "amplitude": 3, "frequency": 3, "phase": 3.1416 } },

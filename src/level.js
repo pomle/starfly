@@ -8,6 +8,8 @@ import { ENEMY_TYPES, ENEMY_PARAMS } from './enemies.js';
  *                          // once everything has spawned and been cleared, and the music stops.
  *                          // true: restart instead, after loopDelay.
  *   "loopDelay": 3,        // optional: seconds of quiet before a loop restart
+ *   "music": "music/coloris.ogg",  // optional: track played during the level, as a path from
+ *                          // the project root. Omit it for a silent level.
  *   "events": [
  *     {
  *       "time": 1.5,       // seconds since level start
@@ -61,8 +63,13 @@ export function parseLevel(data, url = 'level') {
   });
   spawns.sort((a, b) => a.time - b.time); // stable, so same-time events keep file order
 
+  if (data.music !== undefined && (typeof data.music !== 'string' || data.music === '')) {
+    fail(url, '"music" must be a non-empty path string');
+  }
+
   return {
     name: data.name ?? 'Untitled',
+    music: data.music ?? null,
     loop: data.loop ?? false,
     loopDelay: data.loopDelay ?? 3,
     spawns,

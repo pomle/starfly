@@ -92,12 +92,20 @@ export class Game {
     this.debris = new Debris(gl);
     this.enemies = new Enemies(gl);
     this.levels = null;    // all parsed levels, once loaded
+    this.levelMusics = null; // Music (or null) per level, from each level's "music" field
     this.levelIndex = 0;
     this.level = null;     // the current level's parsed data
     this.runner = null;    // LevelRunner for the current level, created lazily
     this.clearTimer = 0;   // counts down while "LEVEL CLEAR" shows
     Promise.all(LEVEL_FILES.map((f) => loadLevel(new URL(`../levels/${f}`, import.meta.url).href)))
-      .then((levels) => { this.levels = levels; this.level = levels[0]; })
+      .then((levels) => {
+        this.levels = levels;
+        this.level = levels[0];
+        // One Music per level that names a track (null = silence), preloaded up front.
+        this.levelMusics = levels.map((l) => (l.music
+          ? new Music(new URL(`../${l.music}`, import.meta.url).href) : null));
+        if (this.state === 'playing') this.playLevelMusic(); // the game started while loading
+      })
       .catch((err) => console.error(err));
     this.shipGfx = new Ship(gl);
     this.crosshair = new Crosshair(gl);
@@ -123,7 +131,6 @@ export class Game {
     // gate screen's click rather than on load.
     this.music = new Music(new URL('../music/bearound.ogg', import.meta.url).href);
     this.sfx = new Sfx();
-    this.levelMusic = new Music(new URL('../music/coloris.ogg', import.meta.url).href);
 
     gl.clearColor(0.01, 0.01, 0.04, 1);
   }
@@ -162,7 +169,7 @@ export class Game {
     t.prevAngle = t.angle;
     this.cam.prevY = this.cam.y;
     this.music.update(dt);
-    this.levelMusic.update(dt);
+    for (const m of this.levelMusics ?? []) m?.update(dt);
 
     // --- Camera auto-scrolls (also behind the splash screen) ---
     this.cam.y += SCROLL_SPEED * dt;
@@ -214,7 +221,7 @@ export class Game {
       } else {
         this.levelClear = true; // all spawned and cleared: end the level
         this.clearTimer = LEVEL_CLEAR_TIME;
-        this.levelMusic.fadeOut(CLEAR_MUSIC_FADE);
+        this.levelMusics[this.levelIndex]?.fadeOut(CLEAR_MUSIC_FADE);
       }
     }
   }
@@ -226,7 +233,12 @@ export class Game {
     this.runner = null;
     this.levelClear = false;
     this.introLeft = INTRO_TIME;
-    this.levelMusic.play({ fadeIn: MUSIC_FADE });
+    this.playLevelMusic();
+  }
+
+  /** Fades in the current level's music, if its level file names one. */
+  playLevelMusic() {
+    this.levelMusics?.[this.levelIndex]?.play({ fadeIn: MUSIC_FADE });
   }
 
   /** Ship movement, roll, turret and shooting. */
@@ -342,7 +354,7 @@ export class Game {
   startGame() {
     this.state = 'playing';
     this.music.fadeOut(MUSIC_FADE);
-    this.levelMusic.play({ fadeIn: MUSIC_FADE }); // crossfade into the level track
+    this.playLevelMusic(); // crossfade into the level track
     this.canvas.style.cursor = 'none';
     this.resetShip();
     this.score = 0;
