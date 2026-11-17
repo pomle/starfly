@@ -41,7 +41,7 @@ const BRUTE_MESH = new Float32Array([
 export const ENEMY_TYPES = {
   jimmy: {
     mesh: DART_MESH, scale: 0.9, radius: 0.8, maxRoll: 1.0,
-    hp: 1, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
+    hp: 3, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
     debris: [0.85, 0.3, 0.42], // chip color when hit
   },
   // Slow, tough and big: drops straight down (amplitude 0) and takes 10 hits.
