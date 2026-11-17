@@ -1,7 +1,7 @@
 // Background music track with autoplay-policy handling and fades.
 
 export class Music {
-  constructor(url, { volume = 0.6, loop = true } = {}) {
+  constructor(url, { volume = 0.3, loop = true } = {}) {
     this.audio = new Audio(url);
     this.audio.loop = loop;
     this.audio.preload = 'auto';
