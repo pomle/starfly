@@ -30,7 +30,7 @@ const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game
 const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
 const PROMPT_ON = 0.6;       // fraction of the cycle the text is visible
 
-const MUSIC_FADE = 1.0;        // seconds to fade the splash music out
+const MUSIC_FADE = 1.0;        // seconds to fade the splash music out / level music in
 
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
@@ -78,6 +78,7 @@ export class Game {
     // Splash music. Browsers block audio until a user gesture, so it starts from the
     // gate screen's click rather than on load.
     this.music = new Music(new URL('../music/bearound.ogg', import.meta.url).href);
+    this.levelMusic = new Music(new URL('../music/coloris.ogg', import.meta.url).href);
 
     gl.clearColor(0.01, 0.01, 0.04, 1);
   }
@@ -116,6 +117,7 @@ export class Game {
     t.prevAngle = t.angle;
     this.cam.prevY = this.cam.y;
     this.music.update(dt);
+    this.levelMusic.update(dt);
 
     // --- Camera auto-scrolls (also behind the splash screen) ---
     this.cam.y += SCROLL_SPEED * dt;
@@ -176,6 +178,7 @@ export class Game {
   startGame() {
     this.state = 'playing';
     this.music.fadeOut(MUSIC_FADE);
+    this.levelMusic.play({ fadeIn: MUSIC_FADE }); // crossfade into the level track
     this.canvas.style.cursor = 'none';
     const s = this.ship;
     s.x = s.prevX = 0;

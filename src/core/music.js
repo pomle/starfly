@@ -1,4 +1,4 @@
-// Background music track with autoplay-policy handling and fade-out.
+// Background music track with autoplay-policy handling and fades.
 
 export class Music {
   constructor(url, { volume = 0.6, loop = true } = {}) {
@@ -7,19 +7,20 @@ export class Music {
     this.audio.preload = 'auto';
     this.volume = volume;
     this.audio.volume = volume;
-    this.fadeLeft = 0;      // seconds remaining in a fade-out
-    this.fadeDuration = 0;
+    this.fade = null; // { from, to, left, total, stop }
   }
 
   /**
-   * Starts playback. Resolves to 'playing', 'blocked' (browser autoplay policy:
-   * retry after a user gesture) or 'error' (e.g. file missing/unsupported).
+   * Starts playback, optionally fading in. Resolves to 'playing', 'blocked'
+   * (browser autoplay policy: retry after a user gesture) or 'error'.
    */
-  async play() {
-    this.fadeLeft = 0;
-    this.audio.volume = this.volume;
+  async play({ fadeIn = 0 } = {}) {
+    this.fade = null;
+    this.audio.currentTime = 0;
+    this.audio.volume = fadeIn > 0 ? 0 : this.volume;
     try {
       await this.audio.play();
+      if (fadeIn > 0) this.fade = { from: 0, to: this.volume, left: fadeIn, total: fadeIn, stop: false };
       return 'playing';
     } catch (err) {
       if (err.name === 'NotAllowedError') return 'blocked';
@@ -30,16 +31,21 @@ export class Music {
 
   fadeOut(seconds = 1) {
     if (this.audio.paused) return;
-    this.fadeDuration = this.fadeLeft = seconds;
+    this.fade = { from: this.audio.volume, to: 0, left: seconds, total: seconds, stop: true };
   }
 
   update(dt) {
-    if (this.fadeLeft <= 0) return;
-    this.fadeLeft = Math.max(0, this.fadeLeft - dt);
-    this.audio.volume = this.volume * (this.fadeLeft / this.fadeDuration);
-    if (this.fadeLeft === 0) {
-      this.audio.pause();
-      this.audio.currentTime = 0;
+    const f = this.fade;
+    if (!f) return;
+    f.left = Math.max(0, f.left - dt);
+    const t = 1 - f.left / f.total;
+    this.audio.volume = f.from + (f.to - f.from) * t;
+    if (f.left === 0) {
+      this.fade = null;
+      if (f.stop) {
+        this.audio.pause();
+        this.audio.currentTime = 0;
+      }
     }
   }
 }

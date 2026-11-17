@@ -19,4 +19,4 @@ Open http://localhost:8000. A "click to start" screen unlocks audio, then the sp
 - `src/graphics/` – starfield, pooled particles, bullets, ship + turret meshes
 - `src/ui/` – crosshair, textured sprites (logo), 5x7 bitmap font
 - `assets/logo.png` – splash logo
-- `music/bearound.ogg` – splash music (src/core/music.js)
+- `music/bearound.ogg` – splash music, `music/coloris.ogg` – level music (src/core/music.js)
