@@ -35,6 +35,10 @@ const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
 const CLEAR_MUSIC_FADE = 1.5;    // seconds to fade the music out when the level is cleared
+// Levels are played in this order; clearing one starts the next.
+const LEVEL_FILES = ['level1.json', 'level2.json'];
+const LEVEL_CLEAR_TIME = 3.5;  // seconds "LEVEL CLEAR" shows before the next level begins
+
 const INTRO_TIME = 4;         // seconds the level name blinks before the level starts
 const INTRO_BLINK = 1.0;       // blink cycle (half on, half off)
 const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
@@ -85,10 +89,13 @@ export class Game {
     this.bullets = new Bullets(gl);
     this.debris = new Debris(gl);
     this.enemies = new Enemies(gl);
-    this.level = null;   // parsed level data, once loaded
-    this.runner = null;  // LevelRunner, created when the game starts
-    loadLevel(new URL('../levels/level1.json', import.meta.url).href)
-      .then((level) => { this.level = level; })
+    this.levels = null;    // all parsed levels, once loaded
+    this.levelIndex = 0;
+    this.level = null;     // the current level's parsed data
+    this.runner = null;    // LevelRunner for the current level, created lazily
+    this.clearTimer = 0;   // counts down while "LEVEL CLEAR" shows
+    Promise.all(LEVEL_FILES.map((f) => loadLevel(new URL(`../levels/${f}`, import.meta.url).href)))
+      .then((levels) => { this.levels = levels; this.level = levels[0]; })
       .catch((err) => console.error(err));
     this.shipGfx = new Ship(gl);
     this.crosshair = new Crosshair(gl);
@@ -191,10 +198,12 @@ export class Game {
       this.introLeft = Math.max(0, this.introLeft - dt);
       return;
     }
-    if (!this.runner) {
-      this.runner = new LevelRunner(this.level);
+    if (this.levelClear) {
+      // Show the label for a while, then move on to the next level (if there is one).
+      if (this.levelIndex + 1 < this.levels.length && (this.clearTimer -= dt) <= 0) this.nextLevel();
+      return;
     }
-    if (this.levelClear) return;
+    if (!this.runner) this.runner = new LevelRunner(this.level);
     const r = this.runner;
     r.update(dt, (sp) => this.enemies.spawn(sp.enemy, sp, this.cam.y, this.viewW, this.worldHeight));
     if (r.done && this.enemies.list.length === 0) {
@@ -202,9 +211,20 @@ export class Game {
         r.reset(this.level.loopDelay);
       } else {
         this.levelClear = true; // all spawned and cleared: end the level
+        this.clearTimer = LEVEL_CLEAR_TIME;
         this.levelMusic.fadeOut(CLEAR_MUSIC_FADE);
       }
     }
+  }
+
+  /** Starts the next level: name intro, fresh spawn schedule, music back in. */
+  nextLevel() {
+    this.levelIndex++;
+    this.level = this.levels[this.levelIndex];
+    this.runner = null;
+    this.levelClear = false;
+    this.introLeft = INTRO_TIME;
+    this.levelMusic.play({ fadeIn: MUSIC_FADE });
   }
 
   /** Ship movement, roll, turret and shooting. */

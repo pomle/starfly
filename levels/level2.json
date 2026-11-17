@@ -1,0 +1,30 @@
+{
+  "name": "Level 2",
+  "loop": false,
+  "events": [
+    { "time": 1.5,  "enemy": "jimmy", "x": -0.8, "count": 6, "interval": 0.3, "params": { "amplitude": 3, "frequency": 3 } },
+    { "time": 1.5,  "enemy": "jimmy", "x": 0.8,  "count": 6, "interval": 0.3, "params": { "amplitude": 3, "frequency": 3, "phase": 3.1416 } },
+
+    { "time": 6,    "enemy": "brute", "x": 0,    "count": 3, "interval": 1.2 },
+
+    { "time": 8,    "enemy": "jimmy", "x": 0,    "count": 8, "interval": 0.25, "params": { "amplitude": 6, "frequency": 2, "descent": 5.5 } },
+
+    { "time": 15,   "enemy": "brute", "x": -0.6, "count": 2, "interval": 1.0 },
+    { "time": 15.5, "enemy": "brute", "x": 0.6,  "count": 2, "interval": 1.0 },
+
+    { "time": 17,   "enemy": "jimmy", "x": -0.5, "count": 7, "interval": 0.3, "params": { "amplitude": 4, "frequency": 2.8 } },
+    { "time": 18,   "enemy": "jimmy", "x": 0.5,  "count": 7, "interval": 0.3, "params": { "amplitude": 4, "frequency": 2.8, "phase": 3.1416 } },
+
+    { "time": 25,   "enemy": "brute", "x": 0,    "count": 4, "interval": 0.9 },
+    { "time": 26,   "enemy": "jimmy", "x": -0.7, "count": 6, "interval": 0.3, "params": { "amplitude": 2, "frequency": 4, "descent": 6 } },
+    { "time": 26.5, "enemy": "jimmy", "x": 0.7,  "count": 6, "interval": 0.3, "params": { "amplitude": 2, "frequency": 4, "descent": 6, "phase": 3.1416 } },
+
+    { "time": 34,   "enemy": "brute", "x": -0.7, "count": 3, "interval": 1.0 },
+    { "time": 34.5, "enemy": "brute", "x": 0.7,  "count": 3, "interval": 1.0 },
+
+    { "time": 38,   "enemy": "jimmy", "x": 0,    "count": 12, "interval": 0.2, "params": { "amplitude": 7, "frequency": 1.8, "descent": 5 } },
+
+    { "time": 45,   "enemy": "jimmy", "x": -0.5, "count": 8, "interval": 0.25, "params": { "frequency": 3 } },
+    { "time": 45.5, "enemy": "jimmy", "x": 0.5,  "count": 8, "interval": 0.25, "params": { "frequency": 3, "phase": 3.1416 } }
+  ]
+}
