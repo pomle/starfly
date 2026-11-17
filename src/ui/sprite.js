@@ -53,6 +53,11 @@ export class Sprite {
     this.ready = true;
   }
 
+  dispose() {
+    this.gl.deleteTexture(this.texture);
+    this.ready = false;
+  }
+
   static fromCanvas(gl, canvas, opts) {
     const s = new Sprite(gl, opts);
     s.setSource(canvas);

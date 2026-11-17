@@ -37,6 +37,12 @@ const MUSIC_FADE = 1.0;        // seconds to fade the splash music out / level m
 
 const BULLET_DAMAGE = 1;    // hp removed from an enemy per bullet hit
 
+const PLAYER_MAX_HP = 3;
+const PLAYER_RADIUS = 0.5;   // forgiving hitbox, smaller than the sprite
+const CONTACT_FACTOR = 0.8;  // enemy contact radius = enemy.radius * this
+const INVULN_TIME = 2;       // seconds of invulnerability after a hit / respawn
+const RESPAWN_TIME = 1.5;    // seconds the ship stays wrecked before respawning
+
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
 const BULLET_SPREAD = 0.02; // radians
@@ -52,7 +58,8 @@ export class Game {
     this.input = input;
     this.time = 0;
     // vx/vy are the ship's velocity relative to the screen (not including scroll).
-    this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5, roll: 0, prevRoll: 0 };
+    this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5, roll: 0, prevRoll: 0,
+      hp: PLAYER_MAX_HP, alive: true, invuln: 0, respawn: 0 };
     this.cam = { y: 0, prevY: 0 }; // camera x is fixed at 0
     // angle/prevAngle are kept unwrapped so interpolation never jumps.
     this.turret = { angle: 0, prevAngle: 0, omega: 0, cooldown: 0 };
@@ -79,6 +86,8 @@ export class Game {
     this.sprites = new SpriteRenderer(gl);
     this.logo = Sprite.fromUrl(gl, new URL('../assets/logo.png', import.meta.url).href);
     this.prompt = Sprite.fromCanvas(gl, makeTextCanvas('PRESS ANY KEY'), { pixelArt: true });
+    this.hud = null;       // "HP n" sprite, rebuilt whenever hp changes
+    this.hudHp = -1;
     this.gatePrompt = Sprite.fromCanvas(gl, makeTextCanvas('CLICK TO START'), { pixelArt: true });
 
     // Splash music. Browsers block audio until a user gesture, so it starts from the
@@ -141,6 +150,21 @@ export class Game {
     }
     this.logoFade = Math.max(0, this.logoFade - dt / LOGO_FADE);
 
+    if (s.alive) this.updatePlayer(dt);
+    else this.updateRespawn(dt);
+
+    this.bullets.update(dt);
+    this.enemies.update(dt, this.cam.y, this.viewW, this.worldHeight, SCROLL_SPEED);
+    this.resolveBulletHits(dt);
+    if (s.alive) this.resolvePlayerHits(dt);
+    this.particles.update(dt);
+  }
+
+  /** Ship movement, roll, turret and shooting. */
+  updatePlayer(dt) {
+    const s = this.ship, t = this.turret, i = this.input;
+    s.invuln = Math.max(0, s.invuln - dt);
+
     // --- Ship: screen-relative movement ---
     const k = (a, b) => (i.isDown(a) || i.isDown(b) ? 1 : 0);
     let mx = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
@@ -180,11 +204,49 @@ export class Game {
       t.cooldown = FIRE_INTERVAL;
       this.fire(tx, ty);
     }
+  }
 
-    this.bullets.update(dt);
-    this.enemies.update(dt, this.cam.y, this.viewW, this.worldHeight, SCROLL_SPEED);
-    this.resolveBulletHits(dt);
-    this.particles.update(dt);
+  updateRespawn(dt) {
+    const s = this.ship;
+    this.updateAim(); // keep the reticle live while the ship is wrecked
+    s.respawn -= dt;
+    if (s.respawn > 0) return;
+    this.resetShip();
+    s.invuln = INVULN_TIME;
+  }
+
+  resetShip() {
+    const s = this.ship;
+    s.alive = true;
+    s.hp = PLAYER_MAX_HP;
+    s.x = s.prevX = 0;
+    s.y = s.prevY = this.cam.y - 5;
+    s.vx = s.vy = 0;
+    s.roll = s.prevRoll = 0;
+    this.turret.omega = 0;
+  }
+
+  /** Enemies that touch the ship blow up and cost it 1 hp. No contact while invulnerable. */
+  resolvePlayerHits(dt) {
+    const s = this.ship;
+    if (s.invuln > 0) return;
+    for (const e of this.enemies.list) {
+      const reach = PLAYER_RADIUS + e.radius * CONTACT_FACTOR;
+      if (Math.hypot(e.x - s.x, e.y - s.y) >= reach) continue;
+      e.dead = true;
+      this.explode(e.x, e.y);
+      s.hp--;
+      if (s.hp <= 0) {
+        s.alive = false;
+        s.respawn = RESPAWN_TIME;
+        this.explode(s.x, s.y, 2.5);
+      } else {
+        s.invuln = INVULN_TIME;
+        for (let n = 0; n < 3; n++) this.hitSpark(s.x, s.y);
+      }
+      break;
+    }
+    this.enemies.sweep();
   }
 
   startGame() {
@@ -192,11 +254,7 @@ export class Game {
     this.music.fadeOut(MUSIC_FADE);
     this.levelMusic.play({ fadeIn: MUSIC_FADE }); // crossfade into the level track
     this.canvas.style.cursor = 'none';
-    const s = this.ship;
-    s.x = s.prevX = 0;
-    s.y = s.prevY = this.cam.y - 5;
-    s.vx = s.vy = 0;
-    s.roll = s.prevRoll = 0;
+    this.resetShip();
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
@@ -227,10 +285,10 @@ export class Game {
   }
 
   /** Small explosion: a quick flash plus a ring of embers. */
-  explode(x, y) {
-    for (let n = 0; n < 3; n++) this.particles.emit(x, y, 0, 0, rand(0.12, 0.2), rand(1.8, 2.6));
-    for (let n = 0; n < 28; n++) {
-      const a = rand(0, TAU), sp = rand(1.5, 8);
+  explode(x, y, scale = 1) {
+    for (let n = 0; n < 3; n++) this.particles.emit(x, y, 0, 0, rand(0.12, 0.2), rand(1.8, 2.6) * scale);
+    for (let n = 0; n < 28 * scale; n++) {
+      const a = rand(0, TAU), sp = rand(1.5, 8) * Math.sqrt(scale);
       this.particles.emit(x, y, Math.cos(a) * sp, Math.sin(a) * sp, rand(0.3, 0.7), rand(0.5, 1.1));
     }
   }
@@ -303,8 +361,12 @@ export class Game {
     }
 
     this.enemies.render(this.viewProj, alpha);
-    this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE, roll);
-    this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
+    // Blink while invulnerable; hidden while wrecked.
+    const blinkOff = s.invuln > 0 && Math.floor(this.time * 12) % 2 === 0;
+    if (s.alive && !blinkOff) {
+      this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE, roll);
+      this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
+    }
 
     // UI: white reticle = where you want to aim, orange dot = where the turret points
     // (same distance as the reticle, so the gap shows the spring lag).
@@ -313,7 +375,22 @@ export class Game {
     const ax = (tx + dx * dist) / hw, ay = (ty + dy * dist - camY) / hh;
     this.crosshair.render(this.width, this.height, this.dpr, this.aim.nx, this.aim.ny, ax, ay);
 
+    this.renderHud();
     if (this.logoFade > 0) this.renderSplash();
+  }
+
+  renderHud() {
+    const hp = Math.max(0, this.ship.hp);
+    if (hp !== this.hudHp) {
+      this.hud?.dispose();
+      this.hud = Sprite.fromCanvas(this.gl, makeTextCanvas(`HP ${hp}`), { pixelArt: true });
+      this.hudHp = hp;
+    }
+    const scale = Math.max(2, Math.round(this.height / 1080 * 4));
+    const w = this.hud.width * scale, h = this.hud.height * scale;
+    const margin = 24 * this.pxScale;
+    this.sprites.draw(this.hud, margin + w / 2, this.height - margin - h / 2, w, h, 1,
+      this.width, this.height);
   }
 
   /** Logo plus blinking prompt. While fading out, only the logo is drawn. */
