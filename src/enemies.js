@@ -2,21 +2,6 @@ import { createProgram } from './core/gl.js';
 import { ColorMesh, COLOR_VERT, COLOR_FRAG, tri } from './graphics/colormesh.js';
 import { WorldSprite } from './graphics/worldsprite.js';
 
-// Heavy armored gunship, also nose-down. Wide teal body with side pods and a red core.
-const bHull = [0.15, 0.45, 0.45], bHullLit = [0.25, 0.7, 0.65];
-const bPod = [0.1, 0.3, 0.32], bPodLit = [0.18, 0.5, 0.5];
-const bAccent = [0.95, 0.6, 0.2], bCore = [1.0, 0.25, 0.2];
-const BRUTE_MESH = new Float32Array([
-  ...tri([0, -1.0], [-0.55, 0.6], [0, 0.8], bHull),
-  ...tri([0, -1.0], [0, 0.8], [0.55, 0.6], bHullLit),
-  ...tri([-0.5, -0.4], [-1.0, -0.2], [-1.0, 0.8], bPod),    // left pod
-  ...tri([-0.5, -0.4], [-1.0, 0.8], [-0.5, 0.8], bPod),
-  ...tri([0.5, -0.4], [0.5, 0.8], [1.0, 0.8], bPodLit),     // right pod
-  ...tri([0.5, -0.4], [1.0, 0.8], [1.0, -0.2], bPodLit),
-  ...tri([-0.3, 0.8], [0.3, 0.8], [0, 1.15], bAccent),      // engine block
-  ...tri([0, -0.45], [-0.18, 0.1], [0.18, 0.1], bCore),     // core
-]);
-
 // Interceptor: slim amber spear with swept fins, nose-down, cyan sensor eye.
 const iHull = [0.75, 0.5, 0.1], iHullLit = [1.0, 0.75, 0.2];
 const iFin = [0.5, 0.3, 0.08], iFinLit = [0.85, 0.55, 0.12], iEye = [0.3, 1.0, 1.0];
@@ -57,10 +42,11 @@ export const ENEMY_TYPES = {
   },
   // Slow, tough and big: drops straight down (amplitude 0) and takes 10 hits.
   brute: {
-    mesh: BRUTE_MESH, scale: 1.3, radius: 1.1, maxRoll: 1.0,
+    sprite: new URL('../assets/brute.png', import.meta.url).href, spriteSize: 7.2,
+    spriteRotation: Math.PI, radius: 2.4, maxRoll: 1.0,
     hp: 10, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
     speed: 0, turnRate: 0, accel: 0,
-    debris: [0.22, 0.62, 0.6],
+    debris: [0.7, 0.4, 0.22], // rusty hull chips
   },
   // Rare kamikaze: always points at the player and flies at them, turning at a limited
   // rate so a quick dodge makes it swing wide. Tougher than a jimmy.
@@ -119,14 +105,16 @@ export class Enemies {
     const amp = Math.min(p.amplitude, viewW * 0.3);
     const cx = (event.x ?? 0) * Math.max(0, viewW / 2 - amp - 1);
     const x = cx + amp * Math.sin(p.phase);
-    const y = camY + viewH / 2 + 1.5;
+    // Spawn just far enough above the screen that the whole sprite starts off-screen.
+    const extent = Math.max(1.5, (type.spriteSize ?? 0) / 2);
+    const y = camY + viewH / 2 + extent;
     this.list.push({
       type: name, cx, amp, freq: p.frequency, phase: p.phase, descent: p.descent,
       speed: p.speed, turnRate: p.turnRate, accel: p.accel, angle: 0, prevAngle: 0,
       vx: 0, vy: -p.speed, // starts at full speed, nose down
       age: 0, x, y, prevX: x, prevY: y, roll: 0, prevRoll: 0,
       hp: p.hp, score: p.score, radius: type.radius, dead: false, hitTimer: 0,
-      kx: 0, ky: 0, kvx: 0, kvy: 0, prevKx: 0, prevKy: 0,
+      kx: 0, ky: 0, kvx: 0, kvy: 0, prevKx: 0, prevKy: 0, extent,
     });
   }
 
@@ -135,8 +123,8 @@ export class Enemies {
    * `target` ({ x, y }) is the player's position, used by homing enemies.
    */
   update(dt, camY, viewH, scroll, target) {
-    const cullY = camY - viewH / 2 - 2;
     for (const e of this.list) {
+      const cullY = camY - viewH / 2 - e.extent - 0.5; // gone only once fully off the bottom
       const type = ENEMY_TYPES[e.type];
       e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll; e.prevAngle = e.angle;
       e.age += dt;
