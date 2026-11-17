@@ -404,12 +404,11 @@ export class Game {
     const waiting = this.state === 'splash';
     const fade = waiting ? 1 : this.logoFade;
 
-    // Logo: up to 80% of the width / 45% of the height, gently bobbing.
+    // Logo: up to 80% of the width / 45% of the height.
     const aspect = this.logo.width / this.logo.height;
     const lw = Math.min(W * 0.8, H * 0.45 * aspect);
     const lh = lw / aspect;
-    const bob = Math.sin(this.time * 1.5) * H * 0.01;
-    this.sprites.draw(this.logo, W / 2, H * 0.6 + bob, lw, lh, fade, W, H);
+    this.sprites.draw(this.logo, W / 2, H * 0.6, lw, lh, fade, W, H);
 
     if (waiting) this.renderPrompt(this.prompt, true);
   }
