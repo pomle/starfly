@@ -5,7 +5,7 @@ import { WorldSprite } from './worldsprite.js';
 // The hull is assets/spaceship-sprite.png (256x256, nose up). All sizes below are
 // world units; the screen is 20 units tall.
 export const SHIP_SIZE = 2.8;        // side of the sprite's square quad
-export const SHIP_ENGINE_Y = -1.0;   // where the exhaust leaves the hull, relative to the ship center
+export const SHIP_ENGINE_Y = -1.4;   // where the exhaust leaves the hull, relative to the ship center
 // Sideways offsets of the three engine nozzles in the sprite (measured from the PNG:
 // texel columns 112.5 / 127.5 / 142.5 of 256, i.e. about -0.17 / 0 / +0.16 units).
 export const SHIP_NOZZLES_X = [-0.17, 0, 0.17];
