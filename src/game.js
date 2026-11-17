@@ -493,7 +493,8 @@ export class Game {
     const blinkOff = s.invuln > 0 && s.flyIn === 0 && Math.floor(this.time * 12) % 2 === 0;
     if (s.alive && !blinkOff) {
       this.shipGfx.renderHull(this.viewProj, x, y, roll);
-      this.shipGfx.renderTurret(this.viewProj, tx, ty, ta);
+      // The turret is simulated (it aims and fires) but intentionally not drawn.
+      // this.shipGfx.renderTurret(this.viewProj, tx, ty, ta);
     }
 
     // UI: white reticle = where you want to aim, orange dot = where the turret points
