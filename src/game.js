@@ -55,6 +55,9 @@ const FLY_IN_REST_Y = -5;      // where the ship settles, relative to the screen
 const INVULN_TIME = 2;       // seconds of invulnerability after a hit / respawn
 const RESPAWN_TIME = 3;      // seconds the ship stays wrecked before respawning
 
+const SPARK_COUNT = 10;          // tiny monochrome sparks per non-lethal hit
+const SPRAY_ANGLE = Math.PI / 4;  // total width of the spark cone: 45 degrees
+
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
 const BULLET_SPREAD = 0.02; // radians
@@ -372,25 +375,48 @@ export class Game {
     this.enemies.sweep();
   }
 
-  /** A few hull chips knocked out of the side facing away from the shot. */
+  /**
+   * Hit debris, thrown out of the side facing away from the shot: a few soft glowing
+   * chips in the enemy's color plus a spray of 1-2 px monochrome sparks in a cone
+   * (SPRAY_ANGLE wide) around the bullet's direction.
+   */
   hitDebris(e, bvx, bvy) {
     const len = Math.hypot(bvx, bvy) || 1;
     const dx = bvx / len, dy = bvy / len; // direction the bullet was travelling
     const px = -dy, py = dx;              // perpendicular
     const base = ENEMY_TYPES[e.type].debris;
     const carry = SCROLL_SPEED - e.descent; // the enemy's own world velocity (y)
-    const n = 3 + (Math.random() < 0.5 ? 1 : 0);
-    for (let k = 0; k < n; k++) {
+    const out = e.radius * 0.75;
+    const ex = e.x + dx * out, ey = e.y + dy * out; // exit point on the far side
+
+    // Chips.
+    const chips = 3 + (Math.random() < 0.5 ? 1 : 0);
+    for (let k = 0; k < chips; k++) {
       const side = rand(-0.5, 0.5) * e.radius;
-      const out = e.radius * 0.75; // far side: shot passes through and chips fly out the back
       const sp = rand(3, 7), spread = rand(-2.5, 2.5);
       const shade = rand(0.8, 1.25);
       this.debris.emit(
-        e.x + dx * out + px * side, e.y + dy * out + py * side,
+        ex + px * side, ey + py * side,
         dx * sp + px * spread, dy * sp + py * spread + carry,
-        rand(0.12, 0.22) * (e.radius > 1 ? 1.3 : 1),
+        rand(0.2, 0.34) * (e.radius > 1 ? 1.3 : 1),
         base.map((c) => Math.min(1, c * shade)),
-        rand(0.4, 0.7),
+        rand(0.25, 0.45),
+      );
+    }
+
+    // Spray of tiny sparks.
+    const heading = Math.atan2(dy, dx);
+    const pxToUnits = this.dpr / this.pxPerUnit; // 1 CSS px in world units
+    for (let k = 0; k < SPARK_COUNT; k++) {
+      const a = heading + rand(-SPRAY_ANGLE / 2, SPRAY_ANGLE / 2);
+      const sp = rand(8, 18);
+      const g = rand(0.7, 1);
+      this.debris.emit(
+        ex, ey,
+        Math.cos(a) * sp, Math.sin(a) * sp + carry,
+        -(Math.random() < 0.5 ? 1 : 2) * pxToUnits, // negative size = crisp spark
+        [g, g, g],
+        rand(0.15, 0.4),
       );
     }
   }

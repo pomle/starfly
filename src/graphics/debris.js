@@ -2,27 +2,45 @@ import { createProgram } from '../core/gl.js';
 
 const VERT = `#version 300 es
 in vec2 aPos;
-in float aSize;   // world units
-in vec4 aColor;   // rgb + alpha
+in float aSize;   // world units; negative = crisp spark (hard dot), positive = soft glow
+in float aT;      // normalized age 0..1
+in vec3 aColor;
 uniform mat4 uViewProj;
 uniform float uPxPerUnit;
-out vec4 vColor;
+out vec3 vColor;
+out float vAlpha;
+out float vCrisp;
 void main() {
-  vColor = aColor;
+  float px = abs(aSize) * uPxPerUnit;
+  vCrisp = aSize < 0.0 ? 1.0 : 0.0;
   gl_Position = uViewProj * vec4(aPos, 0.0, 1.0);
-  gl_PointSize = max(2.0, aSize * uPxPerUnit);
+  gl_PointSize = max(1.0, px * (1.0 - 0.6 * aT * (1.0 - vCrisp))); // glows shrink as they fade
+  vAlpha = (1.0 - aT) * (1.0 - aT);                                  // quick fade-out
+  // Glows start white-hot and settle to their own color, like the exhaust.
+  vColor = mix(mix(vec3(1.0), aColor, smoothstep(0.0, 0.25, aT)), aColor, vCrisp);
 }`;
 
 const FRAG = `#version 300 es
 precision mediump float;
-in vec4 vColor;
+in vec3 vColor;
+in float vAlpha;
+in float vCrisp;
 out vec4 outColor;
-void main() { outColor = vec4(vColor.rgb, 1.0) * vColor.a; } // premultiplied`;
+void main() {
+  float d = length(gl_PointCoord - 0.5) * 2.0;
+  float glow = pow(max(0.0, 1.0 - d), 1.5);
+  float a = vAlpha * mix(glow, 1.0, vCrisp);
+  // Premultiplied color with reduced alpha makes the glows partly additive.
+  outColor = vec4(vColor * a, a * mix(0.5, 1.0, vCrisp));
+}`;
 
-const FLOATS = 7; // x, y, size, r, g, b, a
+const FLOATS = 7; // x, y, size, t, r, g, b
 const DRAG = 1.2;
 
-/** Tiny solid chips (hull fragments) that fly off damaged ships and fade out. */
+/**
+ * Hit debris: soft glowing hull chips that fade out fast (like the exhaust), plus tiny
+ * 1-2 px crisp sparks. Emit a negative size for a spark (hard dot) or a positive one for a glow.
+ */
 export class Debris {
   constructor(gl, max = 512) {
     this.gl = gl;
@@ -44,14 +62,16 @@ export class Debris {
     this.vbo = gl.createBuffer();
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.bufferData(gl.ARRAY_BUFFER, this.data.byteLength, gl.DYNAMIC_DRAW);
-    const { aPos, aSize, aColor } = this.prog.attribs;
+    const { aPos, aSize, aT, aColor } = this.prog.attribs;
     const stride = FLOATS * 4;
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, stride, 0);
     gl.enableVertexAttribArray(aSize);
     gl.vertexAttribPointer(aSize, 1, gl.FLOAT, false, stride, 8);
+    gl.enableVertexAttribArray(aT);
+    gl.vertexAttribPointer(aT, 1, gl.FLOAT, false, stride, 12);
     gl.enableVertexAttribArray(aColor);
-    gl.vertexAttribPointer(aColor, 4, gl.FLOAT, false, stride, 12);
+    gl.vertexAttribPointer(aColor, 3, gl.FLOAT, false, stride, 16);
     gl.bindVertexArray(null);
   }
 
@@ -87,8 +107,8 @@ export class Debris {
     const gl = this.gl, d = this.data;
     for (let i = 0, o = 0; i < this.count; i++, o += FLOATS) {
       d[o] = this.px[i]; d[o + 1] = this.py[i]; d[o + 2] = this.size[i];
-      d[o + 3] = this.color[i * 3]; d[o + 4] = this.color[i * 3 + 1]; d[o + 5] = this.color[i * 3 + 2];
-      d[o + 6] = Math.min(1, (1 - this.age[i] / this.life[i]) * 3); // fade over the last third
+      d[o + 3] = this.age[i] / this.life[i];
+      d[o + 4] = this.color[i * 3]; d[o + 5] = this.color[i * 3 + 1]; d[o + 6] = this.color[i * 3 + 2];
     }
     gl.bindBuffer(gl.ARRAY_BUFFER, this.vbo);
     gl.bufferSubData(gl.ARRAY_BUFFER, 0, d, 0, this.count * FLOATS);
