@@ -13,7 +13,7 @@ import { ENEMY_TYPES, ENEMY_PARAMS } from './enemies.js';
  *       "x": -0.5,         // -1 (left) .. 1 (right) across the playable width; default 0
  *       "count": 6,        // optional: spawn this many...
  *       "interval": 0.4,   // ...this many seconds apart (default 0.4)
- *       "params": { "amplitude": 3, "frequency": 2, "phase": 0, "hp": 1, "descent": 4 }
+ *       "params": { "amplitude": 3, "frequency": 2, "phase": 0, "hp": 1, "descent": 4, "score": 100 }
  *     }
  *   ]
  * }

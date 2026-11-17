@@ -9,6 +9,7 @@ import { Crosshair } from './ui/crosshair.js';
 import { Music } from './core/music.js';
 import { Sfx } from './core/sfx.js';
 import { Sprite, SpriteRenderer } from './ui/sprite.js';
+import { TextLabel } from './ui/textlabel.js';
 import { makeTextCanvas } from './ui/bitmapfont.js';
 
 const STEP = 1 / 60; // must match the loop's fixed step
@@ -93,8 +94,9 @@ export class Game {
     this.sprites = new SpriteRenderer(gl);
     this.logo = Sprite.fromUrl(gl, new URL('../assets/logo.png', import.meta.url).href);
     this.prompt = Sprite.fromCanvas(gl, makeTextCanvas('PRESS ANY KEY'), { pixelArt: true });
-    this.hud = null;       // "HP n" sprite, rebuilt whenever hp changes
-    this.hudHp = -1;
+    this.score = 0;
+    this.hpLabel = new TextLabel(gl);
+    this.scoreLabel = new TextLabel(gl);
     this.gatePrompt = Sprite.fromCanvas(gl, makeTextCanvas('CLICK TO START'), { pixelArt: true });
 
     // Splash music. Browsers block audio until a user gesture, so it starts from the
@@ -276,6 +278,7 @@ export class Game {
     this.levelMusic.play({ fadeIn: MUSIC_FADE }); // crossfade into the level track
     this.canvas.style.cursor = 'none';
     this.resetShip();
+    this.score = 0;
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
@@ -289,6 +292,7 @@ export class Game {
         e.hp -= BULLET_DAMAGE;
         if (e.hp <= 0) {
           e.dead = true;
+          this.score += e.score; // only shot-down enemies score, not ramming
           this.explode(e.x, e.y);
           break;
         }
@@ -402,18 +406,20 @@ export class Game {
     if (this.logoFade > 0) this.renderSplash();
   }
 
+  /** HP top-left, score top-right. */
   renderHud() {
-    const hp = Math.max(0, this.ship.hp);
-    if (hp !== this.hudHp) {
-      this.hud?.dispose();
-      this.hud = Sprite.fromCanvas(this.gl, makeTextCanvas(`HP ${hp}`), { pixelArt: true });
-      this.hudHp = hp;
-    }
-    const scale = Math.max(2, Math.round(this.height / 1080 * 4));
-    const w = this.hud.width * scale, h = this.hud.height * scale;
+    const W = this.width, H = this.height;
+    this.hpLabel.set(`HP ${Math.max(0, this.ship.hp)}`);
+    this.scoreLabel.set(`SCORE ${String(this.score).padStart(6, '0')}`);
+
+    const scale = Math.max(2, Math.round(H / 1080 * 4));
     const margin = 24 * this.pxScale;
-    this.sprites.draw(this.hud, margin + w / 2, this.height - margin - h / 2, w, h, 1,
-      this.width, this.height);
+    for (const [label, right] of [[this.hpLabel, false], [this.scoreLabel, true]]) {
+      const sp = label.sprite;
+      const w = sp.width * scale, h = sp.height * scale;
+      const cx = right ? W - margin - w / 2 : margin + w / 2;
+      this.sprites.draw(sp, cx, H - margin - h / 2, w, h, 1, W, H);
+    }
   }
 
   /** Logo plus blinking prompt. While fading out, only the logo is drawn. */
