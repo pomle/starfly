@@ -28,7 +28,7 @@ const TURRET_C = 6;
 const SCROLL_SPEED = 3;   // world units / s
 const SHIP_SPEED = 10;    // max speed relative to the screen
 const SHIP_RESPONSE = 10; // how quickly velocity chases the input (1/s)
-const MAX_ROLL = 1.0;     // radians (~57 degrees) at full sideways speed
+const MAX_ROLL = 0.8;     // radians (~57 degrees) at full sideways speed
 const ROLL_RESPONSE = 12; // how quickly the roll chases the target (1/s)
 const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 
