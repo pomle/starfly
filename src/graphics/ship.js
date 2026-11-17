@@ -38,16 +38,32 @@ const MESH = new Float32Array([
 
 export const SHIP_ENGINE_OFFSET = -0.7; // local Y of the exhaust, in mesh units
 
-export class Ship {
-  constructor(gl) {
+// Turret: mounted at TURRET_MOUNT_Y on the ship, barrel along +Y of its own frame.
+export const TURRET_MOUNT_Y = 0.15;
+export const TURRET_BARREL = 0.75; // muzzle distance from pivot, mesh units
+const base = [0.2, 0.24, 0.32], barrel = [0.7, 0.75, 0.82];
+const TURRET_MESH = (() => {
+  const v = [];
+  for (let i = 0; i < 8; i++) {
+    const a0 = (i / 8) * Math.PI * 2, a1 = ((i + 1) / 8) * Math.PI * 2;
+    v.push(...tri([0, 0], [Math.cos(a0) * 0.22, Math.sin(a0) * 0.22],
+                  [Math.cos(a1) * 0.22, Math.sin(a1) * 0.22], base));
+  }
+  v.push(...tri([-0.05, 0], [0.05, 0], [-0.05, TURRET_BARREL], barrel));
+  v.push(...tri([0.05, 0], [0.05, TURRET_BARREL], [-0.05, TURRET_BARREL], barrel));
+  return new Float32Array(v);
+})();
+
+class ColorMesh {
+  constructor(gl, prog, data) {
     this.gl = gl;
+    this.prog = prog;
+    this.vertexCount = data.length / 5;
     this.model = mat4.create();
-    this.prog = createProgram(gl, VERT, FRAG);
-    this.vertexCount = MESH.length / 5;
     this.vao = gl.createVertexArray();
     gl.bindVertexArray(this.vao);
-    createBuffer(gl, MESH);
-    const { aPos, aColor } = this.prog.attribs;
+    createBuffer(gl, data);
+    const { aPos, aColor } = prog.attribs;
     gl.enableVertexAttribArray(aPos);
     gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 20, 0);
     gl.enableVertexAttribArray(aColor);
@@ -65,4 +81,14 @@ export class Ship {
     gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
     gl.bindVertexArray(null);
   }
+}
+
+export class Ship {
+  constructor(gl) {
+    const prog = createProgram(gl, VERT, FRAG);
+    this.hull = new ColorMesh(gl, prog, MESH);
+    this.turret = new ColorMesh(gl, prog, TURRET_MESH);
+  }
+  renderHull(viewProj, x, y, angle, scale) { this.hull.render(viewProj, x, y, angle, scale); }
+  renderTurret(viewProj, x, y, angle, scale) { this.turret.render(viewProj, x, y, angle, scale); }
 }

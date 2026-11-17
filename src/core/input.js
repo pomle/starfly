@@ -4,7 +4,7 @@ export class Input {
   constructor(target = window) {
     this.down = new Set();
     this.pressed = new Set(); // went down since last endFrame()
-    this.mouse = { x: 0, y: 0, buttons: 0 };
+    this.mouse = { x: window.innerWidth / 2, y: window.innerHeight / 2, buttons: 0 };
 
     target.addEventListener('keydown', (e) => {
       if (!e.repeat) this.pressed.add(e.code);

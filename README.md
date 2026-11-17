@@ -7,7 +7,7 @@ ES modules need HTTP (not `file://`):
 
     python3 -m http.server 8000
 
-Open http://localhost:8000. Controls: W/Up thrust, A/D or Left/Right turn.
+Open http://localhost:8000. Controls: W/Up thrust, A/D or Left/Right turn, mouse aims the turret, left click or Space fires.
 
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
@@ -16,4 +16,5 @@ Open http://localhost:8000. Controls: W/Up thrust, A/D or Left/Right turn.
 - `src/core/loop.js` – fixed-timestep loop with render interpolation
 - `src/core/input.js` – keyboard/pointer state
 - `src/core/math.js` – mat4 helpers
-- `src/graphics/` – starfield (parallax point layers), particles (pooled exhaust), ship mesh
+- `src/graphics/` – starfield, pooled particles, bullets, ship + turret meshes
+- `src/ui/` – screen-space crosshair
