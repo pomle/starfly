@@ -15,6 +15,20 @@ const EXPLOSION = {
   crackLength: 0.05,      // seconds of bright noise transient
 };
 
+// Enemy hit: a gritty, distorted sawtooth buzz that drops in pitch. Plays on every
+// hit that doesn't destroy the enemy, so keep it short.
+const HIT = {
+  duration: 0.14,
+  freqStart: 280,   // Hz
+  freqEnd: 70,
+  detune: 14,       // cents between the two saws, for a thicker/rougher tone
+  drive: 6,         // gain into the distortion
+  distortion: 80,   // wave-shaper amount: higher = harsher
+  cutoff: 2600,     // Hz low-pass after the distortion
+  level: 0.2,
+  pitchJitter: 0.12,
+};
+
 // Laser shot: short downward pitch sweep. Fires ~9x/s, so keep it short and quiet.
 const LASER = {
   duration: 0.11,
@@ -43,6 +57,7 @@ export class Sfx {
       const comp = this.ctx.createDynamicsCompressor();
       this.master.connect(comp).connect(this.ctx.destination);
       this.noise = this.makeBrownNoise(2);
+      this.hitCurve = this.makeDistortionCurve(HIT.distortion);
     }
     if (this.ctx.state === 'suspended') this.ctx.resume();
   }
@@ -60,10 +75,62 @@ export class Sfx {
     return buf;
   }
 
+  /** Classic soft-to-hard clipping curve for a WaveShaperNode. */
+  makeDistortionCurve(amount) {
+    const n = 1024, curve = new Float32Array(n);
+    for (let i = 0; i < n; i++) {
+      const x = (i / (n - 1)) * 2 - 1;
+      curve[i] = ((3 + amount) * x * 20 * (Math.PI / 180)) / (Math.PI + amount * Math.abs(x));
+    }
+    return curve;
+  }
+
   /** Tracks a voice's lifetime so we can cap simultaneous sounds. */
   track(node) {
     this.voices++;
     node.onended = () => { this.voices--; };
+  }
+
+  /**
+   * Hit: two detuned sawtooths driven into a wave-shaper for a distorted buzz, with a
+   * quick downward pitch drop.
+   * @param pan -1 (left) .. 1 (right)
+   */
+  hit({ pan = 0 } = {}) {
+    const ctx = this.ctx;
+    if (!ctx || ctx.state !== 'running' || this.voices >= MAX_VOICES) return;
+
+    const H = HIT;
+    const t0 = ctx.currentTime;
+    const pitch = 1 + (Math.random() * 2 - 1) * H.pitchJitter;
+
+    const drive = ctx.createGain();
+    drive.gain.value = H.drive;
+    const shaper = ctx.createWaveShaper();
+    shaper.curve = this.hitCurve;
+    shaper.oversample = '4x';
+    const lp = ctx.createBiquadFilter();
+    lp.type = 'lowpass';
+    lp.frequency.value = H.cutoff;
+    const env = ctx.createGain();
+    env.gain.setValueAtTime(0.0001, t0);
+    env.gain.exponentialRampToValueAtTime(H.level, t0 + 0.003);
+    env.gain.exponentialRampToValueAtTime(0.0001, t0 + H.duration);
+    const panner = ctx.createStereoPanner();
+    panner.pan.value = Math.max(-1, Math.min(1, pan));
+    drive.connect(shaper).connect(lp).connect(env).connect(panner).connect(this.master);
+
+    for (const cents of [-H.detune, H.detune]) {
+      const osc = ctx.createOscillator();
+      osc.type = 'sawtooth';
+      osc.detune.value = cents;
+      osc.frequency.setValueAtTime(H.freqStart * pitch, t0);
+      osc.frequency.exponentialRampToValueAtTime(H.freqEnd * pitch, t0 + H.duration);
+      osc.connect(drive);
+      osc.start(t0);
+      osc.stop(t0 + H.duration + 0.02);
+      if (cents > 0) this.track(osc);
+    }
   }
 
   /**

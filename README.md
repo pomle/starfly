@@ -18,7 +18,7 @@ Open the URL it prints (http://localhost:3000 by default). A "click to start" sc
 - `src/core/gl.js` – context, shader/program/buffer helpers, canvas resize
 - `src/core/loop.js` – fixed-timestep loop with render interpolation
 - `src/core/input.js` – keyboard/pointer state
-- `src/core/sfx.js` – procedural Web Audio sound effects (laser, explosions)
+- `src/core/sfx.js` – procedural Web Audio sound effects (laser, hit, explosions)
 - `src/core/math.js` – mat4 helpers
 - `src/graphics/` – starfield, pooled particles, debris chips, bullets, ship + turret meshes
 - `src/ui/` – crosshair, textured sprites (logo), 5x7 bitmap font, text labels (HUD)
