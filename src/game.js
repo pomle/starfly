@@ -33,6 +33,8 @@ const ROLL_RESPONSE = 12; // how quickly the roll chases the target (1/s)
 const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
+const INTRO_TIME = 4;         // seconds the level name blinks before the level starts
+const INTRO_BLINK = 1.0;       // blink cycle (half on, half off)
 const PROMPT_PERIOD = 1.0;   // blink cycle for "PRESS ANY KEY"
 const PROMPT_ON = 0.6;       // fraction of the cycle the text is visible
 
@@ -95,6 +97,8 @@ export class Game {
     this.logo = Sprite.fromUrl(gl, new URL('../assets/logo.png', import.meta.url).href);
     this.prompt = Sprite.fromCanvas(gl, makeTextCanvas('PRESS ANY KEY'), { pixelArt: true });
     this.score = 0;
+    this.introLeft = INTRO_TIME; // level name shows (and the level clock waits) until 0
+    this.nameLabel = new TextLabel(gl);
     this.hpLabel = new TextLabel(gl);
     this.scoreLabel = new TextLabel(gl);
     this.gatePrompt = Sprite.fromCanvas(gl, makeTextCanvas('CLICK TO START'), { pixelArt: true });
@@ -174,8 +178,12 @@ export class Game {
 
   /** Spawns enemies on the level's schedule; loops the level if it asks to. */
   updateLevel(dt) {
+    if (!this.level) return; // still loading
+    if (this.introLeft > 0) { // level name is showing; no enemies yet
+      this.introLeft = Math.max(0, this.introLeft - dt);
+      return;
+    }
     if (!this.runner) {
-      if (!this.level) return; // still loading
       this.runner = new LevelRunner(this.level);
     }
     const r = this.runner;
@@ -279,6 +287,7 @@ export class Game {
     this.canvas.style.cursor = 'none';
     this.resetShip();
     this.score = 0;
+    this.introLeft = INTRO_TIME;
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
@@ -403,7 +412,20 @@ export class Game {
     this.crosshair.render(this.width, this.height, this.dpr, this.aim.nx, this.aim.ny, ax, ay);
 
     this.renderHud();
+    this.renderLevelName();
     if (this.logoFade > 0) this.renderSplash();
+  }
+
+  /** Blinking level title during the intro. Uses the bitmap font (A-Z, 0-9, space, - ! .). */
+  renderLevelName() {
+    if (!this.level || this.introLeft <= 0) return;
+    const elapsed = INTRO_TIME - this.introLeft;
+    if ((elapsed % INTRO_BLINK) >= INTRO_BLINK / 2) return;
+    this.nameLabel.set(this.level.name.toUpperCase());
+    const sp = this.nameLabel.sprite;
+    const scale = Math.max(3, Math.round(this.height / 1080 * 10));
+    this.sprites.draw(sp, this.width / 2, this.height * 0.55,
+      sp.width * scale, sp.height * scale, 1, this.width, this.height);
   }
 
   /** HP top-left, score top-right. */
