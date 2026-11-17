@@ -400,7 +400,7 @@ export class Game {
         dx * sp + px * spread, dy * sp + py * spread + carry,
         rand(0.2, 0.34) * (e.radius > 1 ? 1.3 : 1),
         base.map((c) => Math.min(1, c * shade)),
-        rand(0.25, 0.45),
+        rand(0.75, 1.35), // 3x the original 0.25-0.45 s
       );
     }
 
@@ -416,7 +416,7 @@ export class Game {
         Math.cos(a) * sp, Math.sin(a) * sp + carry,
         -(Math.random() < 0.5 ? 1 : 2) * pxToUnits, // negative size = crisp spark
         [g, g, g],
-        rand(0.15, 0.4),
+        rand(0.45, 1.2), // 3x the original 0.15-0.4 s
       );
     }
   }
