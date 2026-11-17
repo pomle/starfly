@@ -9,7 +9,7 @@ import { ENEMY_TYPES, ENEMY_PARAMS } from './enemies.js';
  *   "events": [
  *     {
  *       "time": 1.5,       // seconds since level start
- *       "enemy": "sine",   // a key of ENEMY_TYPES
+ *       "enemy": "jimmy",  // a key of ENEMY_TYPES
  *       "x": -0.5,         // -1 (left) .. 1 (right) across the playable width; default 0
  *       "count": 6,        // optional: spawn this many...
  *       "interval": 0.4,   // ...this many seconds apart (default 0.4)
