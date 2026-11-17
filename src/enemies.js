@@ -44,10 +44,10 @@ export const ENEMY_TYPES = {
     hp: 1, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
     debris: [0.85, 0.3, 0.42], // chip color when hit
   },
-  // Slow, tough and big: drops straight down (amplitude 0) and takes 3 hits.
+  // Slow, tough and big: drops straight down (amplitude 0) and takes 10 hits.
   brute: {
     mesh: BRUTE_MESH, scale: 1.3, radius: 1.1, maxRoll: 1.0,
-    hp: 3, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
+    hp: 10, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
     debris: [0.22, 0.62, 0.6],
   },
 };
