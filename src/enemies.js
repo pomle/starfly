@@ -42,13 +42,20 @@ export const ENEMY_TYPES = {
   jimmy: {
     mesh: DART_MESH, scale: 0.9, radius: 0.8, maxRoll: 1.0,
     hp: 1, descent: 4, amplitude: 4, frequency: 2.2, phase: 0, score: 100,
+    debris: [0.85, 0.3, 0.42], // chip color when hit
   },
   // Slow, tough and big: drops straight down (amplitude 0) and takes 3 hits.
   brute: {
     mesh: BRUTE_MESH, scale: 1.3, radius: 1.1, maxRoll: 1.0,
     hp: 3, descent: 2.5, amplitude: 0, frequency: 1, phase: 0, score: 300,
+    debris: [0.22, 0.62, 0.6],
   },
 };
+
+// Hit reaction for hits that don't kill: a short shake and a white blink.
+export const HIT_TIME = 0.22;   // seconds
+const HIT_BLINK = 0.055;        // seconds per blink phase (white, normal, white, ...)
+const HIT_SHAKE = 0.14;         // world units at the start of the reaction
 
 export const ENEMY_PARAMS = ['hp', 'descent', 'amplitude', 'frequency', 'phase', 'score'];
 
@@ -78,7 +85,7 @@ export class Enemies {
     this.list.push({
       type: name, cx, amp, freq: p.frequency, phase: p.phase, descent: p.descent,
       age: 0, x, y, prevX: x, prevY: y, roll: 0, prevRoll: 0,
-      hp: p.hp, score: p.score, radius: type.radius, dead: false,
+      hp: p.hp, score: p.score, radius: type.radius, dead: false, hitTimer: 0,
     });
   }
 
@@ -89,6 +96,7 @@ export class Enemies {
       const type = ENEMY_TYPES[e.type];
       e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll;
       e.age += dt;
+      e.hitTimer = Math.max(0, e.hitTimer - dt);
       e.x = e.cx + e.amp * Math.sin(e.freq * e.age + e.phase);
       e.y += (scroll - e.descent) * dt;
       // Roll into the sideways motion: normalized by the path's top speed.
@@ -97,6 +105,11 @@ export class Enemies {
       if (e.y < cullY) e.dead = true;
     }
     this.sweep();
+  }
+
+  /** Starts the shake + blink reaction (for hits that don't destroy the enemy). */
+  hit(e) {
+    e.hitTimer = HIT_TIME;
   }
 
   /** Drops enemies marked dead. */
@@ -109,7 +122,15 @@ export class Enemies {
       const x = e.prevX + (e.x - e.prevX) * alpha;
       const y = e.prevY + (e.y - e.prevY) * alpha;
       const roll = e.prevRoll + (e.roll - e.prevRoll) * alpha;
-      this.meshes.get(e.type).render(viewProj, x, y, 0, ENEMY_TYPES[e.type].scale, roll);
+      // Shake is render-only, so it never moves the hitbox.
+      let ox = 0, oy = 0, flash = 0;
+      if (e.hitTimer > 0) {
+        const k = e.hitTimer / HIT_TIME;
+        ox = Math.sin(e.hitTimer * 120) * HIT_SHAKE * k;
+        oy = Math.cos(e.hitTimer * 97) * HIT_SHAKE * k;
+        flash = Math.floor((HIT_TIME - e.hitTimer) / HIT_BLINK) % 2 === 0 ? 1 : 0;
+      }
+      this.meshes.get(e.type).render(viewProj, x + ox, y + oy, 0, ENEMY_TYPES[e.type].scale, roll, flash);
     }
   }
 }

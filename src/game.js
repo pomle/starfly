@@ -1,9 +1,10 @@
 import { mat4 } from './core/math.js';
 import { Starfield } from './graphics/starfield.js';
 import { Particles } from './graphics/particles.js';
+import { Debris } from './graphics/debris.js';
 import { Bullets } from './graphics/bullets.js';
 import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
-import { Enemies } from './enemies.js';
+import { Enemies, ENEMY_TYPES } from './enemies.js';
 import { loadLevel, LevelRunner } from './level.js';
 import { Crosshair } from './ui/crosshair.js';
 import { Music } from './core/music.js';
@@ -81,6 +82,7 @@ export class Game {
     this.starfield = new Starfield(gl);
     this.particles = new Particles(gl);
     this.bullets = new Bullets(gl);
+    this.debris = new Debris(gl);
     this.enemies = new Enemies(gl);
     this.level = null;   // parsed level data, once loaded
     this.runner = null;  // LevelRunner, created when the game starts
@@ -176,6 +178,7 @@ export class Game {
     this.resolveBulletHits(dt);
     if (s.alive) this.resolvePlayerHits(dt);
     this.particles.update(dt);
+    this.debris.update(dt);
   }
 
   /** Spawns enemies on the level's schedule; loops the level if it asks to. */
@@ -320,6 +323,7 @@ export class Game {
     for (const e of this.enemies.list) {
       for (let b = bullets.count - 1; b >= 0; b--) {
         if (!bullets.hits(b, e.x, e.y, e.radius, dt)) continue;
+        const bvx = bullets.vx[b], bvy = bullets.vy[b]; // read before kill() swaps slots
         bullets.kill(b);
         e.hp -= BULLET_DAMAGE;
         if (e.hp <= 0) {
@@ -328,10 +332,35 @@ export class Game {
           this.explode(e.x, e.y);
           break;
         }
+        this.enemies.hit(e);
+        this.hitDebris(e, bvx, bvy);
         this.hitSpark(e.x, e.y);
       }
     }
     this.enemies.sweep();
+  }
+
+  /** A few hull chips knocked out of the side facing away from the shot. */
+  hitDebris(e, bvx, bvy) {
+    const len = Math.hypot(bvx, bvy) || 1;
+    const dx = bvx / len, dy = bvy / len; // direction the bullet was travelling
+    const px = -dy, py = dx;              // perpendicular
+    const base = ENEMY_TYPES[e.type].debris;
+    const carry = SCROLL_SPEED - e.descent; // the enemy's own world velocity (y)
+    const n = 3 + (Math.random() < 0.5 ? 1 : 0);
+    for (let k = 0; k < n; k++) {
+      const side = rand(-0.5, 0.5) * e.radius;
+      const out = e.radius * 0.75; // far side: shot passes through and chips fly out the back
+      const sp = rand(3, 7), spread = rand(-2.5, 2.5);
+      const shade = rand(0.8, 1.25);
+      this.debris.emit(
+        e.x + dx * out + px * side, e.y + dy * out + py * side,
+        dx * sp + px * spread, dy * sp + py * spread + carry,
+        rand(0.12, 0.22) * (e.radius > 1 ? 1.3 : 1),
+        base.map((c) => Math.min(1, c * shade)),
+        rand(0.4, 0.7),
+      );
+    }
   }
 
   hitSpark(x, y) {
@@ -420,6 +449,7 @@ export class Game {
     }
 
     this.enemies.render(this.viewProj, alpha);
+    this.debris.render(this.viewProj, this.pxPerUnit);
     // Blink while invulnerable; hidden while wrecked.
     const blinkOff = s.invuln > 0 && s.flyIn === 0 && Math.floor(this.time * 12) % 2 === 0;
     if (s.alive && !blinkOff) {
