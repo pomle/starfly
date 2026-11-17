@@ -18,6 +18,7 @@ const RADIUS = 0.8;       // hit radius, world units
 const DESCENT = 4;        // speed down the screen, units/s (relative to the camera)
 const SINE_FREQ = 2.2;    // rad/s
 const MAX_SINE_AMP = 4;   // world units
+const MAX_ROLL = 1.0;     // radians, at the fastest sideways speed of the sine path
 
 // Waves of enemies that all follow the same sinusoidal path, one after another.
 const WAVE_SIZE = 6;
@@ -38,7 +39,7 @@ export class Enemies {
     this.list.push({
       cx: wave.cx, amp: wave.amp, phase: wave.phase, age: 0,
       x: wave.cx + wave.amp * Math.sin(wave.phase), y,
-      prevX: 0, prevY: y, angle: 0, prevAngle: 0,
+      prevX: 0, prevY: y, roll: 0, prevRoll: 0,
       hp: 1, radius: RADIUS, dead: false,
     });
     const e = this.list[this.list.length - 1];
@@ -65,12 +66,12 @@ export class Enemies {
 
     const cullY = camY - viewH / 2 - 2;
     for (const e of this.list) {
-      e.prevX = e.x; e.prevY = e.y; e.prevAngle = e.angle;
+      e.prevX = e.x; e.prevY = e.y; e.prevRoll = e.roll;
       e.age += dt;
       e.x = e.cx + e.amp * Math.sin(SINE_FREQ * e.age + e.phase);
       e.y += (scroll - DESCENT) * dt;
-      // Bank into the turn based on horizontal velocity.
-      e.angle = -((e.x - e.prevX) / dt) * 0.05;
+      // Roll (not yaw) into the sideways motion: normalized by the path's top speed.
+      e.roll = ((e.x - e.prevX) / dt) / (e.amp * SINE_FREQ) * MAX_ROLL;
       if (e.y < cullY) e.dead = true;
     }
     this.sweep();
@@ -85,8 +86,8 @@ export class Enemies {
     for (const e of this.list) {
       const x = e.prevX + (e.x - e.prevX) * alpha;
       const y = e.prevY + (e.y - e.prevY) * alpha;
-      const a = e.prevAngle + (e.angle - e.prevAngle) * alpha;
-      this.mesh.render(viewProj, x, y, a, SCALE);
+      const roll = e.prevRoll + (e.roll - e.prevRoll) * alpha;
+      this.mesh.render(viewProj, x, y, 0, SCALE, roll);
     }
   }
 }
