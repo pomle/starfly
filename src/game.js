@@ -45,6 +45,8 @@ const BULLET_DAMAGE = 1;    // hp removed from an enemy per bullet hit
 const PLAYER_MAX_HP = 3;
 const PLAYER_RADIUS = 0.5;   // forgiving hitbox, smaller than the sprite
 const CONTACT_FACTOR = 0.8;  // enemy contact radius = enemy.radius * this
+const FLY_IN_TIME = 1.2;      // seconds for the ship to fly in from below the screen
+const FLY_IN_REST_Y = -5;      // where the ship settles, relative to the screen center
 const INVULN_TIME = 2;       // seconds of invulnerability after a hit / respawn
 const RESPAWN_TIME = 3;      // seconds the ship stays wrecked before respawning
 
@@ -64,7 +66,7 @@ export class Game {
     this.time = 0;
     // vx/vy are the ship's velocity relative to the screen (not including scroll).
     this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5, roll: 0, prevRoll: 0,
-      hp: PLAYER_MAX_HP, alive: true, invuln: 0, respawn: 0 };
+      hp: PLAYER_MAX_HP, alive: true, invuln: 0, respawn: 0, flyIn: 0 };
     this.cam = { y: 0, prevY: 0 }; // camera x is fixed at 0
     // angle/prevAngle are kept unwrapped so interpolation never jumps.
     this.turret = { angle: 0, prevAngle: 0, omega: 0, cooldown: 0 };
@@ -194,8 +196,31 @@ export class Game {
   /** Ship movement, roll, turret and shooting. */
   updatePlayer(dt) {
     const s = this.ship, t = this.turret, i = this.input;
-    s.invuln = Math.max(0, s.invuln - dt);
+    if (s.flyIn === 0) s.invuln = Math.max(0, s.invuln - dt); // the timer starts after the fly-in
 
+    const thrust = s.flyIn > 0 ? this.flyInStep(dt) : this.moveShip(dt);
+    this.emitExhaust(thrust > 0 ? 3 : 1);
+
+    // --- Turret: spring chases the desired aim direction ---
+    this.updateAim();
+    const [tx, ty] = this.turretPos(s.x, s.y);
+    const desired = angleOf(this.aim.ox - tx, this.cam.y + this.aim.oy - ty);
+    const err = wrapPi(desired - t.angle);
+    t.omega += (TURRET_K * err - TURRET_C * t.omega) * dt;
+    t.angle += t.omega * dt;
+
+    // --- Shooting: fires along the turret's *actual* heading ---
+    t.cooldown = Math.max(0, t.cooldown - dt);
+    const wantFire = (i.mouse.buttons & 1) || i.isDown('Space');
+    if (wantFire && t.cooldown === 0) {
+      t.cooldown = FIRE_INTERVAL;
+      this.fire(tx, ty);
+    }
+  }
+
+  /** Player-controlled movement. Returns the up/down input (for exhaust strength). */
+  moveShip(dt) {
+    const s = this.ship, i = this.input;
     // --- Ship: screen-relative movement ---
     const k = (a, b) => (i.isDown(a) || i.isDown(b) ? 1 : 0);
     let mx = k('KeyD', 'ArrowRight') - k('KeyA', 'ArrowLeft');
@@ -217,24 +242,21 @@ export class Game {
     // Roll: wings tip into the direction of travel (right = positive).
     const rollTarget = (s.vx / SHIP_SPEED) * MAX_ROLL;
     s.roll += (rollTarget - s.roll) * Math.min(1, ROLL_RESPONSE * dt);
+    return my;
+  }
 
-    this.emitExhaust(my > 0 ? 3 : 1);
-
-    // --- Turret: spring chases the desired aim direction ---
-    this.updateAim();
-    const [tx, ty] = this.turretPos(s.x, s.y);
-    const desired = angleOf(this.aim.ox - tx, this.cam.y + this.aim.oy - ty);
-    const err = wrapPi(desired - t.angle);
-    t.omega += (TURRET_K * err - TURRET_C * t.omega) * dt;
-    t.angle += t.omega * dt;
-
-    // --- Shooting: fires along the turret's *actual* heading ---
-    t.cooldown = Math.max(0, t.cooldown - dt);
-    const wantFire = (i.mouse.buttons & 1) || i.isDown('Space');
-    if (wantFire && t.cooldown === 0) {
-      t.cooldown = FIRE_INTERVAL;
-      this.fire(tx, ty);
-    }
+  /** Scripted entry from below the screen with an ease-out, ignoring input. Returns 1 (thrusting). */
+  flyInStep(dt) {
+    const s = this.ship;
+    s.flyIn = Math.max(0, s.flyIn - dt);
+    const t = 1 - s.flyIn / FLY_IN_TIME;
+    const ease = 1 - (1 - t) ** 3; // fast at first, settling gently
+    const startRel = -(this.worldHeight / 2 + 2);
+    s.x = 0;
+    s.y = this.cam.y + startRel + (FLY_IN_REST_Y - startRel) * ease;
+    s.vx = s.vy = 0;
+    s.roll += (0 - s.roll) * Math.min(1, ROLL_RESPONSE * dt);
+    return 1;
   }
 
   updateRespawn(dt) {
@@ -251,7 +273,8 @@ export class Game {
     s.alive = true;
     s.hp = PLAYER_MAX_HP;
     s.x = s.prevX = 0;
-    s.y = s.prevY = this.cam.y - 5;
+    s.y = s.prevY = this.cam.y - (this.worldHeight / 2 + 2); // just below the screen
+    s.flyIn = FLY_IN_TIME;
     s.vx = s.vy = 0;
     s.roll = s.prevRoll = 0;
     this.turret.omega = 0;
@@ -260,7 +283,7 @@ export class Game {
   /** Enemies that touch the ship blow up and cost it 1 hp. No contact while invulnerable. */
   resolvePlayerHits(dt) {
     const s = this.ship;
-    if (s.invuln > 0) return;
+    if (s.invuln > 0 || s.flyIn > 0) return;
     for (const e of this.enemies.list) {
       const reach = PLAYER_RADIUS + e.radius * CONTACT_FACTOR;
       if (Math.hypot(e.x - s.x, e.y - s.y) >= reach) continue;
@@ -398,7 +421,7 @@ export class Game {
 
     this.enemies.render(this.viewProj, alpha);
     // Blink while invulnerable; hidden while wrecked.
-    const blinkOff = s.invuln > 0 && Math.floor(this.time * 12) % 2 === 0;
+    const blinkOff = s.invuln > 0 && s.flyIn === 0 && Math.floor(this.time * 12) % 2 === 0;
     if (s.alive && !blinkOff) {
       this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE, roll);
       this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
