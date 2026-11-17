@@ -1,0 +1,21 @@
+{
+  "name": "Level 1",
+  "loop": true,
+  "loopDelay": 3,
+  "events": [
+    { "time": 1.5,  "enemy": "sine", "x": 0,    "count": 5, "interval": 0.4 },
+
+    { "time": 6,    "enemy": "sine", "x": -0.6, "count": 6, "interval": 0.4 },
+    { "time": 10.5, "enemy": "sine", "x": 0.6,  "count": 6, "interval": 0.4, "params": { "phase": 3.1416 } },
+
+    { "time": 16,   "enemy": "sine", "x": -0.7, "count": 6, "interval": 0.4, "params": { "amplitude": 3 } },
+    { "time": 16,   "enemy": "sine", "x": 0.7,  "count": 6, "interval": 0.4, "params": { "amplitude": 3, "phase": 3.1416 } },
+
+    { "time": 23,   "enemy": "sine", "x": 0,    "count": 8, "interval": 0.3, "params": { "amplitude": 5, "frequency": 1.6 } },
+
+    { "time": 31,   "enemy": "sine", "x": -0.5, "count": 6, "interval": 0.35, "params": { "frequency": 3 } },
+    { "time": 32,   "enemy": "sine", "x": 0.5,  "count": 6, "interval": 0.35, "params": { "frequency": 3, "phase": 3.1416 } },
+
+    { "time": 40,   "enemy": "sine", "x": 0,    "count": 10, "interval": 0.25, "params": { "amplitude": 6, "frequency": 2, "descent": 5 } }
+  ]
+}

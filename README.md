@@ -12,7 +12,9 @@ Open the URL it prints (http://localhost:3000 by default). A "click to start" sc
 ## Layout
 - `src/main.js` – bootstrap (canvas, context, loop)
 - `src/game.js` – game state, update (fixed step) and render
-- `src/enemies.js` – enemy waves (sine-path fighters), mesh and lifecycle
+- `src/enemies.js` – enemy types (referenced by name from levels), movement, rendering
+- `src/level.js` – level JSON loader/validator and the spawn-schedule runner
+- `levels/*.json` – level files: which enemy spawns when (format documented in `src/level.js`)
 - `src/core/gl.js` – context, shader/program/buffer helpers, canvas resize
 - `src/core/loop.js` – fixed-timestep loop with render interpolation
 - `src/core/input.js` – keyboard/pointer state

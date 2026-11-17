@@ -4,6 +4,7 @@ import { Particles } from './graphics/particles.js';
 import { Bullets } from './graphics/bullets.js';
 import { Ship, SHIP_ENGINE_OFFSET, TURRET_MOUNT_Y, TURRET_BARREL } from './graphics/ship.js';
 import { Enemies } from './enemies.js';
+import { loadLevel, LevelRunner } from './level.js';
 import { Crosshair } from './ui/crosshair.js';
 import { Music } from './core/music.js';
 import { Sfx } from './core/sfx.js';
@@ -76,6 +77,11 @@ export class Game {
     this.particles = new Particles(gl);
     this.bullets = new Bullets(gl);
     this.enemies = new Enemies(gl);
+    this.level = null;   // parsed level data, once loaded
+    this.runner = null;  // LevelRunner, created when the game starts
+    loadLevel(new URL('../levels/level1.json', import.meta.url).href)
+      .then((level) => { this.level = level; })
+      .catch((err) => console.error(err));
     this.shipGfx = new Ship(gl);
     this.crosshair = new Crosshair(gl);
 
@@ -157,10 +163,22 @@ export class Game {
     else this.updateRespawn(dt);
 
     this.bullets.update(dt);
-    this.enemies.update(dt, this.cam.y, this.viewW, this.worldHeight, SCROLL_SPEED);
+    this.updateLevel(dt);
+    this.enemies.update(dt, this.cam.y, this.worldHeight, SCROLL_SPEED);
     this.resolveBulletHits(dt);
     if (s.alive) this.resolvePlayerHits(dt);
     this.particles.update(dt);
+  }
+
+  /** Spawns enemies on the level's schedule; loops the level if it asks to. */
+  updateLevel(dt) {
+    if (!this.runner) {
+      if (!this.level) return; // still loading
+      this.runner = new LevelRunner(this.level);
+    }
+    const r = this.runner;
+    r.update(dt, (sp) => this.enemies.spawn(sp.enemy, sp, this.cam.y, this.viewW, this.worldHeight));
+    if (r.done && this.level.loop && this.enemies.list.length === 0) r.reset(this.level.loopDelay);
   }
 
   /** Ship movement, roll, turret and shooting. */
