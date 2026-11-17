@@ -9,6 +9,9 @@ ES modules need HTTP (not `file://`):
 
 Open the URL it prints (http://localhost:3000 by default). A "click to start" screen unlocks audio, then the splash waits for any key or click. Vertical auto-scroller. Controls: WASD/arrows move the ship, mouse aims the turret, left click or Space fires.
 
+## Deploy
+`.github/workflows/deploy.yml` publishes `src/` to GitHub Pages on every push to `main` (or by hand from the Actions tab). One-time setup: in the repository's Settings > Pages, set Source to "GitHub Actions". The site is then at `https://<user>.github.io/<repo>/`; all paths are relative, so the sub-path works.
+
 ## Layout
 The game lives in `src/` (the web root served above). `resources/` at the repo root holds source art and is not served.
 
