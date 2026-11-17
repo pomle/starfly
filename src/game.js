@@ -41,7 +41,7 @@ const PLAYER_MAX_HP = 3;
 const PLAYER_RADIUS = 0.5;   // forgiving hitbox, smaller than the sprite
 const CONTACT_FACTOR = 0.8;  // enemy contact radius = enemy.radius * this
 const INVULN_TIME = 2;       // seconds of invulnerability after a hit / respawn
-const RESPAWN_TIME = 1.5;    // seconds the ship stays wrecked before respawning
+const RESPAWN_TIME = 3;      // seconds the ship stays wrecked before respawning
 
 const FIRE_INTERVAL = 0.11; // seconds between shots
 const BULLET_SPEED = 35;
