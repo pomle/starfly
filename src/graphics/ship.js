@@ -42,6 +42,6 @@ export class Ship {
     this.hull = new ColorMesh(gl, prog, MESH);
     this.turret = new ColorMesh(gl, prog, TURRET_MESH);
   }
-  renderHull(viewProj, x, y, angle, scale) { this.hull.render(viewProj, x, y, angle, scale); }
+  renderHull(viewProj, x, y, angle, scale, roll = 0) { this.hull.render(viewProj, x, y, angle, scale, roll); }
   renderTurret(viewProj, x, y, angle, scale) { this.turret.render(viewProj, x, y, angle, scale); }
 }

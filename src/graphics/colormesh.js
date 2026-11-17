@@ -6,10 +6,15 @@ in vec2 aPos;
 in vec3 aColor;
 uniform mat4 uViewProj;
 uniform mat4 uModel;
+uniform float uRoll;   // radians; roll around the nose axis, seen from above
 out vec3 vColor;
 void main() {
-  vColor = aColor;
-  gl_Position = uViewProj * uModel * vec4(aPos, 0.0, 1.0);
+  // Top-down view of a roll: wings foreshorten (x * cos) and the side tipping
+  // away from the light darkens while the other side brightens.
+  vec2 p = vec2(aPos.x * cos(uRoll), aPos.y);
+  float side = clamp(aPos.x * 2.0, -1.0, 1.0);
+  vColor = aColor * (1.0 - sin(uRoll) * side * 0.4);
+  gl_Position = uViewProj * uModel * vec4(p, 0.0, 1.0);
 }`;
 
 export const COLOR_FRAG = `#version 300 es
@@ -39,12 +44,13 @@ export class ColorMesh {
     gl.bindVertexArray(null);
   }
 
-  render(viewProj, x, y, angle, scale) {
+  render(viewProj, x, y, angle, scale, roll = 0) {
     const gl = this.gl;
     mat4.fromTRS2D(this.model, x, y, angle, scale);
     gl.useProgram(this.prog.program);
     gl.uniformMatrix4fv(this.prog.uniforms.uViewProj, false, viewProj);
     gl.uniformMatrix4fv(this.prog.uniforms.uModel, false, this.model);
+    gl.uniform1f(this.prog.uniforms.uRoll, roll);
     gl.bindVertexArray(this.vao);
     gl.drawArrays(gl.TRIANGLES, 0, this.vertexCount);
     gl.bindVertexArray(null);

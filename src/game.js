@@ -25,6 +25,8 @@ const TURRET_C = 6;
 const SCROLL_SPEED = 3;   // world units / s
 const SHIP_SPEED = 10;    // max speed relative to the screen
 const SHIP_RESPONSE = 10; // how quickly velocity chases the input (1/s)
+const MAX_ROLL = 1.0;     // radians (~57 degrees) at full sideways speed
+const ROLL_RESPONSE = 12; // how quickly the roll chases the target (1/s)
 const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
@@ -50,7 +52,7 @@ export class Game {
     this.input = input;
     this.time = 0;
     // vx/vy are the ship's velocity relative to the screen (not including scroll).
-    this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5 };
+    this.ship = { x: 0, y: -5, vx: 0, vy: 0, prevX: 0, prevY: -5, roll: 0, prevRoll: 0 };
     this.cam = { y: 0, prevY: 0 }; // camera x is fixed at 0
     // angle/prevAngle are kept unwrapped so interpolation never jumps.
     this.turret = { angle: 0, prevAngle: 0, omega: 0, cooldown: 0 };
@@ -117,7 +119,7 @@ export class Game {
   update(dt) {
     this.time += dt;
     const s = this.ship, t = this.turret, i = this.input;
-    s.prevX = s.x; s.prevY = s.y;
+    s.prevX = s.x; s.prevY = s.y; s.prevRoll = s.roll;
     t.prevAngle = t.angle;
     this.cam.prevY = this.cam.y;
     this.music.update(dt);
@@ -157,6 +159,10 @@ export class Game {
     if (s.y < minY) { s.y = minY; s.vy = Math.max(0, s.vy); }
     if (s.y > maxY) { s.y = maxY; s.vy = Math.min(0, s.vy); }
 
+    // Roll: wings tip into the direction of travel (right = positive).
+    const rollTarget = (s.vx / SHIP_SPEED) * MAX_ROLL;
+    s.roll += (rollTarget - s.roll) * Math.min(1, ROLL_RESPONSE * dt);
+
     this.emitExhaust(my > 0 ? 3 : 1);
 
     // --- Turret: spring chases the desired aim direction ---
@@ -190,6 +196,7 @@ export class Game {
     s.x = s.prevX = 0;
     s.y = s.prevY = this.cam.y - 5;
     s.vx = s.vy = 0;
+    s.roll = s.prevRoll = 0;
     this.turret.cooldown = 0.25; // don't fire from the key that started the game
   }
 
@@ -264,6 +271,7 @@ export class Game {
     const gl = this.gl, s = this.ship, t = this.turret;
     const x = s.prevX + (s.x - s.prevX) * alpha;
     const y = s.prevY + (s.y - s.prevY) * alpha;
+    const roll = s.prevRoll + (s.roll - s.prevRoll) * alpha;
     const camY = this.cam.prevY + (this.cam.y - this.cam.prevY) * alpha;
     const ta = t.prevAngle + (t.angle - t.prevAngle) * alpha;
     const [tx, ty] = this.turretPos(x, y);
@@ -295,7 +303,7 @@ export class Game {
     }
 
     this.enemies.render(this.viewProj, alpha);
-    this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE);
+    this.shipGfx.renderHull(this.viewProj, x, y, 0, SHIP_SCALE, roll);
     this.shipGfx.renderTurret(this.viewProj, tx, ty, ta, SHIP_SCALE);
 
     // UI: white reticle = where you want to aim, orange dot = where the turret points
