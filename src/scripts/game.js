@@ -35,7 +35,7 @@ const EDGE_MARGIN = 1.2;  // keeps the ship fully on screen
 const LOGO_FADE = 0.6;       // seconds for the splash to fade out once the game starts
 const CLEAR_MUSIC_FADE = 1.5;    // seconds to fade the music out when the level is cleared
 // Levels are played in this order; clearing one starts the next.
-const LEVEL_FILES = ['level2.json', 'level2.json', 'level3.json'];
+const LEVEL_FILES = ['level1.json', 'level2.json', 'level3.json'];
 const LEVEL_CLEAR_TIME = 3.5;  // seconds "LEVEL CLEAR" shows before the next level begins
 
 const INTRO_TIME = 4;         // seconds the level name blinks before the level starts
